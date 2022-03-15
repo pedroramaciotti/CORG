@@ -5,7 +5,8 @@ from corg import SingleCADimensionBenchmark
 def main():
 
     # fit the model and return train error
-    model = SingleCADimensionBenchmark(compute_train_error = True)
+    compute_train_error = False
+    model = SingleCADimensionBenchmark(compute_train_error = compute_train_error)
 
     ca_dimension_file_header_names = None # no header : first column is entity (node ID)
     ca_dimension_file_header_names = {'entity' : 'twitter_id'} # must have at least an 'entity' column
@@ -17,7 +18,24 @@ def main():
     label_file_header_names = {'entity':'twitter_id', 'label':'label'}
     Y = model.load_label_from_file('data/benchmark_dim_data/benchmark_data_parameters.csv',
             label_file_header_names = label_file_header_names)
-    print(Y)
+    #print(Y)
+
+    model.fit(X, Y)
+
+    if compute_train_error:
+        print(model.accuracy_train_)
+        print(model.precision_train_)
+        print(model.recall_train_)
+        print(model.f1_score_train_)
+    else: 
+        print(model.accuracy_mean_)
+        print(model.accuracy_std_)
+        print(model.precision_mean_)
+        print(model.precision_std_)
+        print(model.recall_mean_)
+        print(model.recall_std_)
+        print(model.f1_score_mean_)
+        print(model.f1_score_std_)
 
 if __name__ == "__main__":
     main()

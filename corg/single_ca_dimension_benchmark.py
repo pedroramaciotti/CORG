@@ -6,7 +6,12 @@ import os.path
 
 import pandas as pd
 
-#import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import make_scorer, accuracy_score, precision_score, recall_score, f1_score
+from sklearn.model_selection import cross_validate
+from sklearn.model_selection import LeaveOneOut
+
+import numpy as np
 
 class SingleCADimensionBenchmark(BaseEstimator, TransformerMixin): 
 
@@ -17,7 +22,68 @@ class SingleCADimensionBenchmark(BaseEstimator, TransformerMixin):
         # if True return train error, otherwise perform CV
         self.compute_train_error = compute_train_error
 
-    def fit(self, X, Y):
+    def fit(self, X, Y): 
+
+        if not isinstance(X, pd.DataFrame):
+            raise ValueError('\'X\' parameter must be a pandas dataframe')
+
+        if 'entity' not in X.columns:
+            raise ValueError('\'X\' has to have an \'entity\' column')
+
+        if len(X.columns) != 2:
+            raise ValueError('\'X\' has to have two columns')
+
+        ca_dimension_name = X.columns.tolist()[0]
+        if ca_dimension_name == 'entity':
+            ca_dimension_name = X.columns.tolist()[1]
+
+        if not isinstance(Y, pd.DataFrame):
+            raise ValueError('\'Y\' parameter must be a pandas dataframe') 
+
+        if 'entity' not in Y.columns:
+            raise ValueError('\'Y\' has to have an \'entity\' column')
+
+        if 'label' not in Y.columns:
+            raise ValueError('\'Y\' has to have an \'label\' column')
+
+        XY = pd.merge(X, Y, on = 'entity', how = 'inner')
+
+        X_np = XY[ca_dimension_name].values.reshape(-1, 1)
+        y_np = XY['label'].values
+
+        clf_model = LogisticRegression(random_state = self.random_state)
+
+        if self.compute_train_error:
+            clf_model.fit(X_np, y_np)
+
+            y_train_pred_np = clf_model.predict(X_np)
+
+            self.accuracy_train_ = accuracy_score(y_np, y_train_pred_np)
+            self.precision_train_ = precision_score(y_np, y_train_pred_np)
+            self.recall_train_ = recall_score(y_np, y_train_pred_np)
+            self.f1_score_train_ = f1_score(y_np, y_train_pred_np)
+        else:
+            cv = LeaveOneOut()
+
+            # define scores to compute
+            scoring = {'accuracy' : make_scorer(accuracy_score),
+                    'precision' : make_scorer(precision_score, average = 'micro'),
+                    'recall' : make_scorer(recall_score, average = 'micro'),
+                    'f1_score' : make_scorer(f1_score, average = 'micro')}
+            scores = cross_validate(clf_model, X_np, y_np, scoring = scoring, cv = cv, n_jobs = -1)
+
+            self.accuracy_mean_ = np.mean(scores['test_accuracy'])
+            self.accuracy_std_ = np.std(scores['test_accuracy'])
+
+            self.precision_mean_ = np.mean(scores['test_precision'])
+            self.precision_std_ = np.std(scores['test_precision'])
+
+            self.recall_mean_ = np.mean(scores['test_recall'])
+            self.recall_std_ = np.std(scores['test_recall'])
+
+            self.f1_score_mean_ = np.mean(scores['test_f1_score'])
+            self.f1_score_std_ = np.std(scores['test_f1_score'])
+
         return self
 
     def transform(self, X):
