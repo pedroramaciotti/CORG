@@ -6,12 +6,12 @@ import os.path
 
 import pandas as pd
 
-#from sklearn.linear_model import LogisticRegression
-#from sklearn.metrics import make_scorer, accuracy_score, precision_score, recall_score, f1_score
-#from sklearn.model_selection import cross_validate
-#from sklearn.model_selection import LeaveOneOut
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import make_scorer, accuracy_score, precision_score, recall_score, f1_score
+from sklearn.model_selection import cross_validate
+from sklearn.model_selection import LeaveOneOut
 
-#import numpy as np
+import numpy as np
 
 class CADimensionDiscovery(BaseEstimator, TransformerMixin): 
 
@@ -30,12 +30,8 @@ class CADimensionDiscovery(BaseEstimator, TransformerMixin):
         if 'entity' not in X.columns:
             raise ValueError('\'X\' has to have an \'entity\' column')
 
-        if len(X.columns) != 2:
-            raise ValueError('\'X\' has to have two columns')
-
-        ca_dimension_name = X.columns.tolist()[0]
-        if ca_dimension_name == 'entity':
-            ca_dimension_name = X.columns.tolist()[1]
+        ca_dimensions = X.columns.tolist()
+        ca_dimensions.remove('entity')
 
         if not isinstance(Y, pd.DataFrame):
             raise ValueError('\'Y\' parameter must be a pandas dataframe') 
@@ -48,14 +44,17 @@ class CADimensionDiscovery(BaseEstimator, TransformerMixin):
 
         XY = pd.merge(X, Y, on = 'entity', how = 'inner')
 
-        X_np = XY[ca_dimension_name].values.reshape(-1, 1)
+        X_np = XY[ca_dimensions].values
         y_np = XY['label'].values
 
         clf_model = LogisticRegression(random_state = self.random_state)
+        clf_model.fit(X_np, y_np)
 
-        if self.compute_train_error:
-            clf_model.fit(X_np, y_np)
+        # compute model decision boundary
+        self.model_decision_boundary_ = clf_model.coef_[0].tolist()
+        self.model_decision_boundary_.append(clf_model.intercept_[0])
 
+        if self.compute_train_error: # finally report accuracy metrics
             y_train_pred_np = clf_model.predict(X_np)
 
             self.accuracy_train_ = accuracy_score(y_np, y_train_pred_np)
@@ -134,7 +133,6 @@ class CADimensionDiscovery(BaseEstimator, TransformerMixin):
 
         if ca_dimension_file_header_names is not None:
             if 'ca_dimensions' in ca_dimension_file_header_names.keys():
-                print('here 1')
                 cols = ca_dimension_file_header_names['ca_dimensions']
                 cols.append('entity')
                 ca_dim_df = ca_dim_df[cols]
@@ -164,13 +162,11 @@ class CADimensionDiscovery(BaseEstimator, TransformerMixin):
         if column_no < 2:
             raise ValueError('Label file has to have at least two columns.') 
 
-        '''
         # sanity checks in header
-        if ca_dimension_file_header_names is not None:
-            if ca_dimension_file_header_names['entity'] not in header_df.columns:
+        if label_file_header_names is not None:
+            if label_file_header_names['entity'] not in header_df.columns:
                 raise ValueError('CA dimensions file has to have a ' 
-                        + ca_dimension_file_header_names['entity'] + ' column.') 
-        '''
+                        + label_file_header_names['entity'] + ' column.') 
 
         # load ca dimensions data
         label_df = None

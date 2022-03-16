@@ -163,13 +163,11 @@ class SingleCADimensionBenchmark(BaseEstimator, TransformerMixin):
         if column_no < 2:
             raise ValueError('Label file has to have at least two columns.') 
 
-        '''
         # sanity checks in header
-        if ca_dimension_file_header_names is not None:
-            if ca_dimension_file_header_names['entity'] not in header_df.columns:
+        if label_file_header_names is not None:
+            if label_file_header_names['entity'] not in header_df.columns:
                 raise ValueError('CA dimensions file has to have a ' 
-                        + ca_dimension_file_header_names['entity'] + ' column.') 
-        '''
+                        + label_file_header_names['entity'] + ' column.') 
 
         # load ca dimensions data
         label_df = None
