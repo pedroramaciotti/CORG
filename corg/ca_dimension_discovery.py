@@ -6,20 +6,20 @@ import os.path
 
 import pandas as pd
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import make_scorer, accuracy_score, precision_score, recall_score, f1_score
-from sklearn.model_selection import cross_validate
-from sklearn.model_selection import LeaveOneOut
+#from sklearn.linear_model import LogisticRegression
+#from sklearn.metrics import make_scorer, accuracy_score, precision_score, recall_score, f1_score
+#from sklearn.model_selection import cross_validate
+#from sklearn.model_selection import LeaveOneOut
 
-import numpy as np
+#import numpy as np
 
-class SingleCADimensionBenchmark(BaseEstimator, TransformerMixin): 
+class CADimensionDiscovery(BaseEstimator, TransformerMixin): 
 
     def __init__(self, compute_train_error = True, random_state = None):
 
         self.random_state = random_state
 
-        # if True return train error, otherwise perform CV
+        # if True return train error, otherwise perform CV to compute accuracy metrics
         self.compute_train_error = compute_train_error
 
     def fit(self, X, Y): 
@@ -101,7 +101,7 @@ class SingleCADimensionBenchmark(BaseEstimator, TransformerMixin):
     def score(self, X, y):
         return 1
 
-    def load_CA_dimension_from_file(self, path_ca_dimension_file, ca_dimension,
+    def load_CA_dimensions_from_file(self, path_ca_dimension_file,
             ca_dimension_file_header_names = None):
 
         # check that a CA dimension file is provided
@@ -132,18 +132,19 @@ class SingleCADimensionBenchmark(BaseEstimator, TransformerMixin):
             ca_dim_df = pd.read_csv(path_ca_dimension_file).rename(columns 
                     = {ca_dimension_file_header_names['entity']:'entity'}) 
 
-        if ca_dimension is None:
-            raise ValueError('A CA dimension to benchmark needs to be provided.')
-
-        if ca_dimension not in ca_dim_df.columns:
-            raise ValueError('A CA dimension to benchmark does not exist.')
-
-        ca_dim_df = ca_dim_df[['entity', ca_dimension]]
+        if ca_dimension_file_header_names is not None:
+            if 'ca_dimensions' in ca_dimension_file_header_names.keys():
+                print('here 1')
+                cols = ca_dimension_file_header_names['ca_dimensions']
+                cols.append('entity')
+                ca_dim_df = ca_dim_df[cols]
 
         ca_dim_df.dropna(inplace = True)
 
         ca_dim_df['entity'] = ca_dim_df['entity'].astype(str)
-        ca_dim_df[ca_dimension] = ca_dim_df[ca_dimension].astype(float)
+        for c in ca_dim_df.columns:
+            if c != 'entity':
+                ca_dim_df[c] = ca_dim_df[c].astype(float)
 
         return(ca_dim_df)
 
