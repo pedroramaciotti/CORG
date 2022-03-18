@@ -4,6 +4,9 @@ from corg import SingleCADimensionBenchmark
 
 def main():
 
+    # Note from 18th March meeting:
+    # Naming "SingleCADimensionBenchmark" should "BenchmarkDimension"
+
     # fit the model and return train error
     compute_train_error = False
     model = SingleCADimensionBenchmark(compute_train_error = compute_train_error)
@@ -19,6 +22,13 @@ def main():
     Y = model.load_label_from_file('data/benchmark_dim_data/benchmark_data_parameters.csv',
             label_file_header_names = label_file_header_names)
     #print(Y)
+
+    # Note from 18th March meeting:
+    # Just checking: load_label_from_file loads a file with two columns
+    # One column is entity, other column is label
+
+    # Note from 18th March meeting:
+    # Labels should be binary: like "Democrat" "republican", or "left" "right"
 
     model.fit(X, Y)
 
@@ -36,6 +46,14 @@ def main():
         print(model.recall_std_)
         print(model.f1_score_mean_)
         print(model.f1_score_std_)
+
+    # Note from 18th March meeting:
+    # Labels should be binary: like "Democrat" "republican", or "left" "right"
+
+    # logistic(beta_0,beta_1)
+    model.beta0_
+    model.beta1_
+
 
 if __name__ == "__main__":
     main()

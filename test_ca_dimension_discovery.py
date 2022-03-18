@@ -4,6 +4,8 @@ from corg import CADimensionDiscovery
 
 def main():
 
+    # Note from 18th March meeting:
+    # Naming "CADimensionDiscovery" should "DiscoverDimension"
 
     # fit the model and return train error
     compute_train_error = True
@@ -41,6 +43,15 @@ def main():
         print(model.recall_std_)
         print(model.f1_score_mean_)
         print(model.f1_score_std_)
+
+    # Note from 18th March meeting:
+    # Different return formats for the boundary decision
+    #
+    # Format 1: the n+1 coefficients of the hyperplane (n number of dimensions of the dataset): b0+b1*x1+b2*x2+...
+    #
+    # Format 2: return 2 vectors:
+    #            - the unit normal of the hyperplane
+    #            - and the projection of the origin on the hyperplane
 
 if __name__ == "__main__":
     main()
