@@ -1,15 +1,12 @@
 # linate class
 
-from corg import CADimensionDiscovery
+from corg import DiscoverDimension
 
 def main():
 
-    # Note from 18th March meeting:
-    # Naming "CADimensionDiscovery" should "DiscoverDimension"
-
     # fit the model and return train error
     compute_train_error = True
-    model = CADimensionDiscovery(compute_train_error = compute_train_error)
+    model = DiscoverDimension(compute_train_error = compute_train_error)
 
     #ca_dimension_file_header_names = None # no header : first column is entity (node ID)
     #ca_dimension_file_header_names = {'entity' : 'twitter_id'} # must have at least an 'entity' column
@@ -18,7 +15,7 @@ def main():
                                                  # can optionally choose subset of dimensions
     X = model.load_CA_dimensions_from_file('data/benchmark_dim_data/benchmark_data_input.csv',
             ca_dimension_file_header_names = ca_dimension_file_header_names)
-    #print(X)
+    #print(X.shape)
 
     #label_file_header_names = None # no header : first column is entity, second column is label
     label_file_header_names = {'entity':'twitter_id', 'label':'label'}
@@ -44,10 +41,10 @@ def main():
         print(model.f1_score_mean_)
         print(model.f1_score_std_)
 
+    print('Decision boundary', model.model_decision_boundary_)
+
     # Note from 18th March meeting:
     # Different return formats for the boundary decision
-    #
-    # Format 1: the n+1 coefficients of the hyperplane (n number of dimensions of the dataset): b0+b1*x1+b2*x2+...
     #
     # Format 2: return 2 vectors:
     #            - the unit normal of the hyperplane

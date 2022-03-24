@@ -6,6 +6,7 @@ import os.path
 
 import pandas as pd
 
+from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import make_scorer, accuracy_score, precision_score, recall_score, f1_score
 from sklearn.model_selection import cross_validate
@@ -13,7 +14,7 @@ from sklearn.model_selection import LeaveOneOut
 
 import numpy as np
 
-class CADimensionDiscovery(BaseEstimator, TransformerMixin): 
+class DiscoverDimension(BaseEstimator, TransformerMixin): 
 
     def __init__(self, compute_train_error = True, random_state = None):
 
@@ -45,7 +46,11 @@ class CADimensionDiscovery(BaseEstimator, TransformerMixin):
         XY = pd.merge(X, Y, on = 'entity', how = 'inner')
 
         X_np = XY[ca_dimensions].values
-        y_np = XY['label'].values
+
+        # convert labels to 0, 1
+        le = LabelEncoder()
+        le.fit(XY['label'].values)
+        y_np = le.transform(XY['label'].values)
 
         clf_model = LogisticRegression(random_state = self.random_state)
         clf_model.fit(X_np, y_np)
@@ -183,6 +188,6 @@ class CADimensionDiscovery(BaseEstimator, TransformerMixin):
         label_df.dropna(inplace = True)
 
         label_df['entity'] = label_df['entity'].astype(str)
-        label_df['label'] = label_df['label'].astype(float)
+        label_df['label'] = label_df['label'].astype(str)
 
         return(label_df)
