@@ -1,15 +1,12 @@
 # linate class
 
-from corg import SingleCADimensionBenchmark
+from corg import BenchmarkDimension
 
 def main():
 
-    # Note from 18th March meeting:
-    # Naming "SingleCADimensionBenchmark" should "BenchmarkDimension"
-
     # fit the model and return train error
     compute_train_error = False
-    model = SingleCADimensionBenchmark(compute_train_error = compute_train_error)
+    model = BenchmarkDimension(compute_train_error = compute_train_error)
 
     ca_dimension_file_header_names = None # no header : first column is entity (node ID)
     ca_dimension_file_header_names = {'entity' : 'twitter_id'} # must have at least an 'entity' column
@@ -19,16 +16,9 @@ def main():
 
     label_file_header_names = None # no header : first column is entity, second column is label
     label_file_header_names = {'entity':'twitter_id', 'label':'label'}
-    Y = model.load_label_from_file('data/benchmark_dim_data/benchmark_data_parameters.csv',
+    Y = model.load_label_from_file('data/benchmark_dim_data/benchmark_data_parameters.csv.original',
             label_file_header_names = label_file_header_names)
     #print(Y)
-
-    # Note from 18th March meeting:
-    # Just checking: load_label_from_file loads a file with two columns
-    # One column is entity, other column is label
-
-    # Note from 18th March meeting:
-    # Labels should be binary: like "Democrat" "republican", or "left" "right"
 
     model.fit(X, Y)
 
@@ -51,9 +41,8 @@ def main():
     # Labels should be binary: like "Democrat" "republican", or "left" "right"
 
     # logistic(beta_0,beta_1)
-    model.beta0_
-    model.beta1_
-
+    print('beta0', model.beta0_)
+    print('beta1', model.beta1_)
 
 if __name__ == "__main__":
     main()

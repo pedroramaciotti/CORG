@@ -13,7 +13,7 @@ from sklearn.model_selection import LeaveOneOut
 
 import numpy as np
 
-class SingleCADimensionBenchmark(BaseEstimator, TransformerMixin): 
+class BenchmarkDimension(BaseEstimator, TransformerMixin): 
 
     def __init__(self, compute_train_error = True, random_state = None):
 
@@ -48,14 +48,20 @@ class SingleCADimensionBenchmark(BaseEstimator, TransformerMixin):
 
         XY = pd.merge(X, Y, on = 'entity', how = 'inner')
 
+        if (len(XY.label.unique())) != 2: # labels should be binary
+                raise ValueError('Labels should be binary')
+        
         X_np = XY[ca_dimension_name].values.reshape(-1, 1)
         y_np = XY['label'].values
 
         clf_model = LogisticRegression(random_state = self.random_state)
+        clf_model.fit(X_np, y_np)
+
+        # compute logistic regression coefficients
+        self.beta1_ = clf_model.coef_[0].tolist()[0]
+        self.beta0_ = clf_model.intercept_[0]
 
         if self.compute_train_error:
-            clf_model.fit(X_np, y_np)
-
             y_train_pred_np = clf_model.predict(X_np)
 
             self.accuracy_train_ = accuracy_score(y_np, y_train_pred_np)
@@ -184,6 +190,6 @@ class SingleCADimensionBenchmark(BaseEstimator, TransformerMixin):
         label_df.dropna(inplace = True)
 
         label_df['entity'] = label_df['entity'].astype(str)
-        label_df['label'] = label_df['label'].astype(float)
+        label_df['label'] = label_df['label'].astype(str)
 
         return(label_df)
