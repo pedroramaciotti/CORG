@@ -33,9 +33,9 @@ class BenchmarkDimension(BaseEstimator, TransformerMixin):
         if len(X.columns) != 2:
             raise ValueError('\'X\' has to have two columns')
 
-        ca_dimension_name = X.columns.tolist()[0]
-        if ca_dimension_name == 'entity':
-            ca_dimension_name = X.columns.tolist()[1]
+        dimension_name = X.columns.tolist()[0]
+        if dimension_name == 'entity':
+            dimension_name = X.columns.tolist()[1]
 
         if not isinstance(Y, pd.DataFrame):
             raise ValueError('\'Y\' parameter must be a pandas dataframe') 
@@ -51,7 +51,7 @@ class BenchmarkDimension(BaseEstimator, TransformerMixin):
         if (len(XY.label.unique())) != 2: # labels should be binary
                 raise ValueError('Labels should be binary')
         
-        X_np = XY[ca_dimension_name].values.reshape(-1, 1)
+        X_np = XY[dimension_name].values.reshape(-1, 1)
         y_np = XY['label'].values
 
         clf_model = LogisticRegression(random_state = self.random_state)
@@ -107,51 +107,51 @@ class BenchmarkDimension(BaseEstimator, TransformerMixin):
     def score(self, X, y):
         return 1
 
-    def load_CA_dimension_from_file(self, path_ca_dimension_file, ca_dimension,
-            ca_dimension_file_header_names = None):
+    def load_dimension_from_file(self, path_dimension_file, dimension,
+            dimension_file_header_names = None):
 
-        # check that a CA dimension file is provided
-        if path_ca_dimension_file is None:
-            raise ValueError('CA dimensions file name is not provided.')
+        # check that a dimension file is provided
+        if path_dimension_file is None:
+            raise ValueError('Dimensions file name is not provided.')
 
-        # check that CA dimension file exists
-        if not os.path.isfile(path_ca_dimension_file):
-            raise ValueError('CA dimensions file does not.')
+        # check that a dimension file exists
+        if not os.path.isfile(path_dimension_file):
+            raise ValueError('Dimensions file does not.')
 
         # handles files with or without header
-        header_df = pd.read_csv(path_ca_dimension_file, nrows = 0)
+        header_df = pd.read_csv(path_dimension_file, nrows = 0)
         column_no = len(header_df.columns)
         if column_no < 2:
-            raise ValueError('CA dimensions file has to have at least two columns.') 
+            raise ValueError('Dimensions file has to have at least two columns.') 
 
         # sanity checks in header
-        if ca_dimension_file_header_names is not None:
-            if ca_dimension_file_header_names['entity'] not in header_df.columns:
-                raise ValueError('CA dimensions file has to have a ' 
-                        + ca_dimension_file_header_names['entity'] + ' column.') 
+        if dimension_file_header_names is not None:
+            if dimension_file_header_names['entity'] not in header_df.columns:
+                raise ValueError('Dimensions file has to have a ' 
+                        + dimension_file_header_names['entity'] + ' column.') 
 
-        # load ca dimensions data
-        ca_dim_df = None
-        if ca_dimension_file_header_names is None:
-            ca_dim_df = pd.read_csv(path_ca_dimension_file, header = None).rename(columns = {0:'entity'})
+        # load dimensions data
+        dim_df = None
+        if dimension_file_header_names is None:
+            dim_df = pd.read_csv(path_dimension_file, header = None).rename(columns = {0:'entity'})
         else:
-            ca_dim_df = pd.read_csv(path_ca_dimension_file).rename(columns 
-                    = {ca_dimension_file_header_names['entity']:'entity'}) 
+            dim_df = pd.read_csv(path_dimension_file).rename(columns 
+                    = {dimension_file_header_names['entity']:'entity'}) 
 
-        if ca_dimension is None:
-            raise ValueError('A CA dimension to benchmark needs to be provided.')
+        if dimension is None:
+            raise ValueError('A dimension to benchmark needs to be provided.')
 
-        if ca_dimension not in ca_dim_df.columns:
-            raise ValueError('A CA dimension to benchmark does not exist.')
+        if dimension not in dim_df.columns:
+            raise ValueError('A dimension to benchmark does not exist.')
 
-        ca_dim_df = ca_dim_df[['entity', ca_dimension]]
+        dim_df = dim_df[['entity', dimension]]
 
-        ca_dim_df.dropna(inplace = True)
+        dim_df.dropna(inplace = True)
 
-        ca_dim_df['entity'] = ca_dim_df['entity'].astype(str)
-        ca_dim_df[ca_dimension] = ca_dim_df[ca_dimension].astype(float)
+        dim_df['entity'] = dim_df['entity'].astype(str)
+        dim_df[dimension] = dim_df[dimension].astype(float)
 
-        return(ca_dim_df)
+        return(dim_df)
 
     def load_label_from_file(self, path_label_file, label_file_header_names = None):
 
@@ -172,10 +172,10 @@ class BenchmarkDimension(BaseEstimator, TransformerMixin):
         # sanity checks in header
         if label_file_header_names is not None:
             if label_file_header_names['entity'] not in header_df.columns:
-                raise ValueError('CA dimensions file has to have a ' 
+                raise ValueError('Dimensions file has to have a ' 
                         + label_file_header_names['entity'] + ' column.') 
 
-        # load ca dimensions data
+        # load dimensions data
         label_df = None
         if label_file_header_names is None:
             label_df = pd.read_csv(path_label_file, header = None).rename(columns 

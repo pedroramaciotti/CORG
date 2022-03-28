@@ -8,13 +8,13 @@ def main():
     compute_train_error = False
     model = BenchmarkDimension(compute_train_error = compute_train_error)
 
-    ca_dimension_file_header_names = None # no header : first column is entity (node ID)
-    ca_dimension_file_header_names = {'entity' : 'twitter_id'} # must have at least an 'entity' column
-    X = model.load_CA_dimension_from_file('data/benchmark_dim_data/benchmark_data_input.csv',
-            ca_dimension = 'ca_component_1', ca_dimension_file_header_names = ca_dimension_file_header_names)
+    #dimension_file_header_names = None # no header : first column is entity (node ID)
+    dimension_file_header_names = {'entity' : 'twitter_id'} # must have at least an 'entity' column
+    X = model.load_dimension_from_file('data/benchmark_dim_data/benchmark_data_input.csv',
+            dimension = 'ca_component_1', dimension_file_header_names = dimension_file_header_names)
     #print(X)
 
-    label_file_header_names = None # no header : first column is entity, second column is label
+    #label_file_header_names = None # no header : first column is entity, second column is label
     label_file_header_names = {'entity':'twitter_id', 'label':'label'}
     Y = model.load_label_from_file('data/benchmark_dim_data/benchmark_data_parameters.csv.original',
             label_file_header_names = label_file_header_names)
@@ -37,8 +37,8 @@ def main():
         print(model.f1_score_mean_)
         print(model.f1_score_std_)
 
-    # Note from 18th March meeting:
-    # Labels should be binary: like "Democrat" "republican", or "left" "right"
+    # Labels should be binary and do not need to be 0/1:
+    # like "Democrat" "republican", or "left" "right"
 
     # logistic(beta_0,beta_1)
     print('beta0', model.beta0_)
