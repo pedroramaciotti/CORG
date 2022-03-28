@@ -8,13 +8,13 @@ def main():
     compute_train_error = True
     model = DiscoverDimension(compute_train_error = compute_train_error)
 
-    #ca_dimension_file_header_names = None # no header : first column is entity (node ID)
-    #ca_dimension_file_header_names = {'entity' : 'twitter_id'} # must have at least an 'entity' column
-    ca_dimension_file_header_names = {'entity' : 'twitter_id', 'ca_dimensions' :
+    #dimension_file_header_names = None # no header : first column is entity (node ID)
+    #dimension_file_header_names = {'entity' : 'twitter_id'} # must have at least an 'entity' column
+    dimension_file_header_names = {'entity' : 'twitter_id', 'dimensions' :
             ['ca_component_0', 'ca_component_2', 'ca_component_5', 'ca_component_9']} 
                                                  # can optionally choose subset of dimensions
-    X = model.load_CA_dimensions_from_file('data/benchmark_dim_data/benchmark_data_input.csv',
-            ca_dimension_file_header_names = ca_dimension_file_header_names)
+    X = model.load_dimensions_from_file('data/benchmark_dim_data/benchmark_data_input.csv',
+            dimension_file_header_names = dimension_file_header_names)
     #print(X.shape)
 
     #label_file_header_names = None # no header : first column is entity, second column is label
@@ -24,7 +24,6 @@ def main():
     #print(Y)
 
     model.fit(X, Y)
-    print(model.model_decision_boundary_)
 
     if compute_train_error:
         print(model.accuracy_train_)
@@ -41,14 +40,12 @@ def main():
         print(model.f1_score_mean_)
         print(model.f1_score_std_)
 
+    # Format 1 of decision boundary
     print('Decision boundary', model.model_decision_boundary_)
 
-    # Note from 18th March meeting:
-    # Different return formats for the boundary decision
-    #
-    # Format 2: return 2 vectors:
-    #            - the unit normal of the hyperplane
-    #            - and the projection of the origin on the hyperplane
+    # Format 2 of decision boundary
+    print('Unit normal of decision hyperplane', model.decision_hyperplane_unit_normal)
+    print('Projection of original to hyperplane', model.origin_projection_to_hyperplane)
 
 if __name__ == "__main__":
     main()

@@ -14,6 +14,8 @@ from sklearn.model_selection import LeaveOneOut
 
 import numpy as np
 
+import math
+
 class DiscoverDimension(BaseEstimator, TransformerMixin): 
 
     def __init__(self, compute_train_error = True, random_state = None):
@@ -31,8 +33,8 @@ class DiscoverDimension(BaseEstimator, TransformerMixin):
         if 'entity' not in X.columns:
             raise ValueError('\'X\' has to have an \'entity\' column')
 
-        ca_dimensions = X.columns.tolist()
-        ca_dimensions.remove('entity')
+        dimensions = X.columns.tolist()
+        dimensions.remove('entity')
 
         if not isinstance(Y, pd.DataFrame):
             raise ValueError('\'Y\' parameter must be a pandas dataframe') 
@@ -45,7 +47,7 @@ class DiscoverDimension(BaseEstimator, TransformerMixin):
 
         XY = pd.merge(X, Y, on = 'entity', how = 'inner')
 
-        X_np = XY[ca_dimensions].values
+        X_np = XY[dimensions].values
 
         # convert labels to 0, 1
         le = LabelEncoder()
@@ -57,7 +59,15 @@ class DiscoverDimension(BaseEstimator, TransformerMixin):
 
         # compute model decision boundary
         self.model_decision_boundary_ = clf_model.coef_[0].tolist()
+        clf_coeffs = self.model_decision_boundary_.copy()
         self.model_decision_boundary_.append(clf_model.intercept_[0])
+
+        # compute decision boundary normal perpediculat vector
+        db_abs = math.sqrt(sum(i * i for i in clf_coeffs))
+        self.decision_hyperplane_unit_normal = [i / db_abs for i in clf_coeffs]
+        db_sqr = sum(i * i for i in clf_coeffs)
+        self.origin_projection_to_hyperplane = [((-1) * i * clf_model.intercept_[0]) / 
+                db_sqr for i in clf_coeffs]
 
         if self.compute_train_error: # finally report accuracy metrics
             y_train_pred_np = clf_model.predict(X_np)
@@ -105,51 +115,51 @@ class DiscoverDimension(BaseEstimator, TransformerMixin):
     def score(self, X, y):
         return 1
 
-    def load_CA_dimensions_from_file(self, path_ca_dimension_file,
-            ca_dimension_file_header_names = None):
+    def load_dimensions_from_file(self, path_dimension_file,
+            dimension_file_header_names = None):
 
-        # check that a CA dimension file is provided
-        if path_ca_dimension_file is None:
-            raise ValueError('CA dimensions file name is not provided.')
+        # check that a dimension file is provided
+        if path_dimension_file is None:
+            raise ValueError('Dimensions file name is not provided.')
 
-        # check that CA dimension file exists
-        if not os.path.isfile(path_ca_dimension_file):
-            raise ValueError('CA dimensions file does not.')
+        # check that dimension file exists
+        if not os.path.isfile(path_dimension_file):
+            raise ValueError('Dimensions file does not.')
 
         # handles files with or without header
-        header_df = pd.read_csv(path_ca_dimension_file, nrows = 0)
+        header_df = pd.read_csv(path_dimension_file, nrows = 0)
         column_no = len(header_df.columns)
         if column_no < 2:
-            raise ValueError('CA dimensions file has to have at least two columns.') 
+            raise ValueError('Dimensions file has to have at least two columns.') 
 
         # sanity checks in header
-        if ca_dimension_file_header_names is not None:
-            if ca_dimension_file_header_names['entity'] not in header_df.columns:
-                raise ValueError('CA dimensions file has to have a ' 
-                        + ca_dimension_file_header_names['entity'] + ' column.') 
+        if dimension_file_header_names is not None:
+            if dimension_file_header_names['entity'] not in header_df.columns:
+                raise ValueError('Dimensions file has to have a ' 
+                        + dimension_file_header_names['entity'] + ' column.') 
 
-        # load ca dimensions data
-        ca_dim_df = None
-        if ca_dimension_file_header_names is None:
-            ca_dim_df = pd.read_csv(path_ca_dimension_file, header = None).rename(columns = {0:'entity'})
+        # load dimensions data
+        dim_df = None
+        if dimension_file_header_names is None:
+            dim_df = pd.read_csv(path_dimension_file, header = None).rename(columns = {0:'entity'})
         else:
-            ca_dim_df = pd.read_csv(path_ca_dimension_file).rename(columns 
-                    = {ca_dimension_file_header_names['entity']:'entity'}) 
+            dim_df = pd.read_csv(path_dimension_file).rename(columns 
+                    = {dimension_file_header_names['entity']:'entity'}) 
 
-        if ca_dimension_file_header_names is not None:
-            if 'ca_dimensions' in ca_dimension_file_header_names.keys():
-                cols = ca_dimension_file_header_names['ca_dimensions']
+        if dimension_file_header_names is not None:
+            if 'dimensions' in dimension_file_header_names.keys():
+                cols = dimension_file_header_names['dimensions']
                 cols.append('entity')
-                ca_dim_df = ca_dim_df[cols]
+                dim_df = dim_df[cols]
 
-        ca_dim_df.dropna(inplace = True)
+        dim_df.dropna(inplace = True)
 
-        ca_dim_df['entity'] = ca_dim_df['entity'].astype(str)
-        for c in ca_dim_df.columns:
+        dim_df['entity'] = dim_df['entity'].astype(str)
+        for c in dim_df.columns:
             if c != 'entity':
-                ca_dim_df[c] = ca_dim_df[c].astype(float)
+                dim_df[c] = dim_df[c].astype(float)
 
-        return(ca_dim_df)
+        return(dim_df)
 
     def load_label_from_file(self, path_label_file, label_file_header_names = None):
 
@@ -170,10 +180,10 @@ class DiscoverDimension(BaseEstimator, TransformerMixin):
         # sanity checks in header
         if label_file_header_names is not None:
             if label_file_header_names['entity'] not in header_df.columns:
-                raise ValueError('CA dimensions file has to have a ' 
+                raise ValueError('Dimensions file has to have a ' 
                         + label_file_header_names['entity'] + ' column.') 
 
-        # load ca dimensions data
+        # load dimensions data
         label_df = None
         if label_file_header_names is None:
             label_df = pd.read_csv(path_label_file, header = None).rename(columns 
