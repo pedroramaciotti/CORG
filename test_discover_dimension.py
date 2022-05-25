@@ -45,7 +45,7 @@ def main():
 
     # Format 2 of decision boundary
     print('Unit normal of decision hyperplane', model.decision_hyperplane_unit_normal)
-    print('Projection of original to hyperplane', model.origin_projection_to_hyperplane)
+    print('Projection of origin to hyperplane', model.origin_projection_to_hyperplane)
 
 if __name__ == "__main__":
     main()
