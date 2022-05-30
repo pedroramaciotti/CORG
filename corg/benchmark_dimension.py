@@ -13,14 +13,19 @@ from sklearn.model_selection import LeaveOneOut
 
 import numpy as np
 
+from imblearn.under_sampling import RandomUnderSampler
+
 class BenchmarkDimension(BaseEstimator, TransformerMixin): 
 
-    def __init__(self, compute_train_error = True, random_state = None):
+    def __init__(self, compute_train_error = True, undersample_data = False, random_state = None):
 
         self.random_state = random_state
 
         # if True return train error, otherwise perform CV
         self.compute_train_error = compute_train_error
+
+        # if True balance the data by randomly selecting a subset of data for the targeted classes
+        self.undersample_data = undersample_data
 
     def fit(self, X, Y): 
 
@@ -50,9 +55,13 @@ class BenchmarkDimension(BaseEstimator, TransformerMixin):
 
         if (len(XY.label.unique())) != 2: # labels should be binary
                 raise ValueError('Labels should be binary')
-        
+
         X_np = XY[dimension_name].values.reshape(-1, 1)
         y_np = XY['label'].values
+
+        if self.undersample_data:
+            rus = RandomUnderSampler(random_state = self.random_state)
+            X_np, y_np = rus.fit_resample(X_np, y_np)
 
         clf_model = LogisticRegression(random_state = self.random_state)
         clf_model.fit(X_np, y_np)
