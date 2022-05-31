@@ -13,7 +13,7 @@ from sklearn.model_selection import LeaveOneOut
 
 import numpy as np
 
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.under_sampling import RandomUnderSampler, NearMiss
 
 class BenchmarkDimension(BaseEstimator, TransformerMixin): 
 
@@ -60,8 +60,9 @@ class BenchmarkDimension(BaseEstimator, TransformerMixin):
         y_np = XY['label'].values
 
         if self.undersample_data:
-            rus = RandomUnderSampler(random_state = self.random_state)
-            X_np, y_np = rus.fit_resample(X_np, y_np)
+            #under_sampler = RandomUnderSampler(random_state = self.random_state)
+            under_sampler = NearMiss(version = 1) # 1, 2, 3
+            X_np, y_np = under_sampler.fit_resample(X_np, y_np)
 
         clf_model = LogisticRegression(random_state = self.random_state)
         clf_model.fit(X_np, y_np)
