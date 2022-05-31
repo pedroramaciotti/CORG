@@ -60,8 +60,8 @@ class BenchmarkDimension(BaseEstimator, TransformerMixin):
         y_np = XY['label'].values
 
         if self.undersample_data:
-            #under_sampler = RandomUnderSampler(random_state = self.random_state)
-            under_sampler = NearMiss(version = 1) # 1, 2, 3
+            under_sampler = RandomUnderSampler(random_state = self.random_state)
+            under_sampler = NearMiss(version = 2) # 1, 2, 3
             X_np, y_np = under_sampler.fit_resample(X_np, y_np)
 
         clf_model = LogisticRegression(random_state = self.random_state)
