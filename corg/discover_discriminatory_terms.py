@@ -7,7 +7,14 @@ import os
 import pandas as pd
 pd.set_option("display.max_columns", None)
 
-class DiscriminatoryTermsExtractor():
+import spacy
+from spacy.tokenizer import _get_regex_pattern
+
+import re
+
+import textacy
+
+class DiscriminatoryTermsExtractor:
 
     def load_text_and_dimensions(self, text_and_dimensions_filename = None):
         if text_and_dimensions_filename is None:
@@ -39,8 +46,57 @@ class DiscriminatoryTermsExtractor():
 
         # concatenate all text blocks in a list
         doc_sample = [str(doc) for doc in df_domain_sample_df[text_column]]
-        print(len(doc_sample))
+        #print(len(doc_sample))
 
-        #nlp = extacy.build_extraction_pipe(txt_lang, with_NER = False)
-        #corpus = textacy.Corpus(nlp, data = documents_sample)
+        nlp = self.__build_extraction_pipe(txt_lang, with_NER = False)
+        doc_corpus = textacy.Corpus(nlp, data = doc_sample)
+
+        N = len(doc_corpus)
+        NW = doc_corpus.n_tokens
+
+        #100 000 is good, 1M is overkill
+        print(" Total number of tokens in the document corpus: ", NW)
+        print(" Sampled over a number of documents: ", N)
+
+    # load a spacy pipeline: overwrite tokenization 
+    # to protect hashtags(H) and mentions(@)
+    def __build_extraction_pipe(self, lang, with_NER = False):
+        model = None
+        if lang == 'en':
+            model = "en_core_web_sm"
+        elif lang == 'fr':
+            model = "fr_core_news_sm"
+        elif lang == 'de':
+            model = "de_core_news_sm"
+        elif lang == 'it':
+            model = "it_core_news_sm"
+        elif lang == 'es':
+            model = "es_core_news_sm"
+        else:
+            raise ValueError('Unsupported language.')
+
+        if with_NER:
+            nlp = spacy.load(model,disable = ("parser"))
+        else:
+            nlp = spacy.load(model,disable = ("parser", "ner"))
+        nlp.add_pipe("emoji", first = True)
+
+        # protect hashtags and mentions
+        # get default pattern for tokens that don't get split
+        re_token_match = _get_regex_pattern(nlp.Defaults.token_match)
+        # add your patterns (here: hashtags and in-word hyphens)
+        re_token_match = f"({re_token_match}|@[A-Za-z]+|#[A-Za-z]+|[A-Za-z]+-[A-Za-z]+)"
+        # overwrite token_match function of the tokenizer
+        nlp.tokenizer.token_match = re.compile(re_token_match).match
+
+        # add attribute ruler with exception for hahstags
+        ruler = nlp.get_pipe("attribute_ruler")
+        patterns = [[{"TEXT": {"REGEX":r"[\#|\@][A-Za-z]+"}}]]
+
+        # the attributes to assign to the matched token
+        attrs = {"POS": "NOUN",'TAG':"HTG"}
+        # Add rules to the attribute ruler
+        ruler.add(patterns = patterns, attrs = attrs, index = 0)  # "The" in "The Who"
+
+        return nlp
 
