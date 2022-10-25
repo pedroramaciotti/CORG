@@ -15,10 +15,10 @@ def main():
 
     # 'text_language': en, fr, de, it, es
     if 'text_column' in params['discriminatory_terms'].keys():
-        dte.create_document_corpus(txt_dim_df = txt_dim_df, txt_lang =  params['discriminatory_terms']['text_language'],
-                text_column = params['discriminatory_terms']['text_column'], sample_no = 20000)
+        dte.extract_frequent_terms(txt_dim_df = txt_dim_df, txt_lang =  params['discriminatory_terms']['text_language'],
+                text_column = params['discriminatory_terms']['text_column'], sample_no = 20)
     else:
-        dte.create_document_corpus(txt_dim_df = txt_dim_df, 
+        dte.extract_frequent_terms(txt_dim_df = txt_dim_df, 
                 txt_lang =  params['discriminatory_terms']['text_language'], sample_no = 20000)
 
 if __name__ == "__main__":

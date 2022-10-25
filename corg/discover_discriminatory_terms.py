@@ -14,6 +14,10 @@ import re
 
 import textacy
 
+pattern_NP = [{"POS": "ADJ", "OP": "*"}, {"POS": {'IN': ["NOUN", 'PROPN']}, "OP": "+"}, 
+        {"POS": "ADJ", "OP": "*"}, {"POS": {'IN':["CC",'ADP','NUM','DET']}, "OP": "*"},
+        {"POS": "ADJ", "OP": "*"}, {"POS": {'IN':["NOUN",'PROPN']}, "OP": "*"}]
+
 class DiscriminatoryTermsExtractor:
 
     def load_text_and_dimensions(self, text_and_dimensions_filename = None):
@@ -27,10 +31,10 @@ class DiscriminatoryTermsExtractor:
 
         return (df)
 
-    # if sample_no not None use a sample of the documents to create the corpus
-    def create_document_corpus(self, txt_dim_df = None, txt_lang = None, 
-            text_column = 'text', sample_no = None):
-
+    # create a document corpus and return most frequent terms
+    def extract_frequent_terms(self, txt_dim_df = None, txt_lang = None, 
+            text_column = 'text', sample_no = None): # if sample_no not None sample 
+                                                     # documents to create the corpus
         if txt_dim_df is None:
             raise ValueError('Text and dimensions dataframe should be provided.')
 
@@ -57,6 +61,15 @@ class DiscriminatoryTermsExtractor:
         #100 000 is good, 1M is overkill
         print(" Total number of tokens in the document corpus: ", NW)
         print(" Sampled over a number of documents: ", N)
+
+        ngrmin = 1
+        ngrmax = 3
+        with_NER = False
+        type_pattern = ['NP','VP']
+        NER_types = ['PER','ORG']
+        sample_dictionary, sample_index = self.__extract_terms(doc_corpus, lang = txt_lang, ngrmin = ngrmin,
+                                                 ngrmax = ngrmax, type_pattern = type_pattern,
+                                                 NER_extract = with_NER, NER_types = NER_types)
 
     # load a spacy pipeline: overwrite tokenization 
     # to protect hashtags(H) and mentions(@)
@@ -99,4 +112,154 @@ class DiscriminatoryTermsExtractor:
         ruler.add(patterns = patterns, attrs = attrs, index = 0)  # "The" in "The Who"
 
         return nlp
+
+    # extract terms from corpus based on given patterns (POS NER etc)
+    def __extract_terms(self, doc_corpus, lang = 'en', ngrmin = 1, ngrmax = 10, type_pattern = ['NP'], NER_extract = False,
+            remove_emoji = True, NER_types = {"PER", "ORG", "GPE",'LOC'}, starting = None):
+
+        sample_dictionary = {}
+        sample_containing_doc_ids = {}
+
+        pattern = [] 
+        authorizez_ending_tags = []
+        if 'NP' in type_pattern:
+            pattern.append(pattern_NP)
+
+            if lang == 'en':
+                authorizez_ending_tags.extend(['NOUN','PROPN'])
+            else:
+                authorizez_ending_tags.extend(['NOUN','PROPN','ADJ'])
+        if 'VG' in type_pattern:
+            pattern.append(pattern_VG)
+            authorizez_ending_tags.extend(['VERB','ADV'])
+
+        if 'HT' in type_pattern:
+            pattern.append(pattern_HT)
+            authorizez_ending_tags.extend(['NOUN','PROPN'])
+
+        if NER_extract:
+            authorizez_ending_tags.extend(['NOUN','PROPN'])
+            authorizez_ending_tags = set(authorizez_ending_tags)
+
+        if len(type_pattern) == 0:
+            if NER_extract:
+                doc_terms = (textacy.extract.terms(doc, ents = partial(textacy.extract.entities,include_types = NER_types)) 
+                        for doc in doc_corpus)
+        if len(type_pattern) > 0:
+            if NER_extract:
+                doc_terms = (chain(textacy.extract.token_matches(doc, pattern), 
+                    textacy.extract.terms(doc, ents = partial(textacy.extract.entities,include_types = NER_types)))
+                    for doc in corpus)
+            else:
+                doc_terms = (textacy.extract.token_matches(doc, pattern) for doc in doc_corpus)
+
+
+        nb_index = 0
+        for doc_id, doc in enumerate(doc_terms):
+            already_seen_spans = {}
+            for ws in doc:
+
+                if len(ws) > 0:
+
+                    # first check that the pattern was not met before
+                    unique_signature = str(doc_id) +  '_' + str(ws.start) + '_'  + str(ws.end)
+                    if unique_signature in already_seen_spans:
+                        pass
+                    else:
+                        already_seen_spans[unique_signature] = True
+
+                        # check whether the starting character feature is met
+                        if starting == None:
+                            pass
+                        else:
+                            clause = False
+                            for start in starting:
+                                if ws.text[0][:len(start)] == start:
+                                    clause = True
+                            if not clause:
+                                break
+
+                        # control for the POS of the last word, and imit terms such as emoji's etc
+                        if self.__common_post_mistake(ws[-1]) in authorizez_ending_tags and self.__word_to_keep(ws,
+                                remove_emoji = remove_emoji, remove_http = True, remove_too_small = True):
+
+                            ws_full = []
+
+                            # number of hashtags and max size of words in the multiterm
+                            hashtag_no, maxsize = self.__count_hashtags_and_length(ws)
+
+                            if hashtag_no <= 1 and maxsize > 1:
+                                for w in ws:
+                                    wl = w.lemma_.lower()
+
+                                    # remove special characters, such as '!', ':' etc
+                                    if wl[-1] in '[!,\.:;"\'«»\-]' and w.tag_ == 'HTG':
+                                        if len(wl) >= 3:
+                                            wl = wl[:-1]
+
+                                    if wl[0] in '[!,\.:;"\'«»\-]':
+                                        if len(wl) >= 3:
+                                            wl = wl[1:]
+                                    
+                                    # also remove '#' and '@'
+                                    ws_full.append(wl.replace('@', '').replace('#', ''))
+
+                                ws_full = [x for x in ws_full if not len(x) == 0]
+
+                                if len(ws_full) >= ngrmin and len(ws_full) <= ngrmax:
+                                    ws_full.sort()
+                                    ws_full_ordered = ' '.join(ws_full)
+                                    if len(ws_full_ordered) > 1:
+                                        if not ws_full_ordered in sample_dictionary:
+                                            sample_dictionary[ws_full_ordered] = {}
+                                        wst = ws.text.strip()
+                                        sample_dictionary[ws_full_ordered][wst] = sample_dictionary[ws_full_ordered].get(wst, 0) + 1
+                                        sample_containing_doc_ids.setdefault(ws_full_ordered, []).append(doc_id)
+                                        nb_index = nb_index + 1
+
+        print()
+        print(len(sample_containing_doc_ids),' candidate terms extracted.')
+        print (nb_index, ' total term occurrences.')
+
+        return sample_dictionary, sample_containing_doc_ids
+
+    def __common_post_mistake(self, wrd):
+        if wrd.text in ['-','.','\n','/']:
+            return 'PUNKT'
+        elif wrd.text in ["l'","l▒~@~Y","d'","d▒~@~Y"]:
+            return 'DET'
+        elif wrd.text[0] in ['@','#']:
+            return 'NOUN'
+        else:
+            return wrd.pos_
+    
+    # check whether the term/word should be maintained
+    def __word_to_keep(self, wrd, remove_emoji = True,
+            remove_http = True, remove_too_small = True):
+        #remove EMOJIs from the list by default
+        if remove_emoji:
+            if wrd._.has_emoji:
+                return False
+
+        #remove URLs from the list by default
+        if remove_http:
+            if 'http' in str(wrd):
+                return False
+
+        if remove_too_small:
+            if len(wrd.text) < 2:
+                return False
+
+        return True
+
+    def __count_hashtags_and_length(self, wrd):
+        hstgs_no = 0
+        wrd_size = []
+
+        for w in wrd:
+            wrd_size.append(len(w))
+            if w.tag_=='HTG':
+                hstgs_no = hstgs_no + 1
+
+        return hstgs_no, max(wrd_size)
 
