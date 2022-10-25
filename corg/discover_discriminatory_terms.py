@@ -113,7 +113,7 @@ class DiscriminatoryTermsExtractor:
 
         return nlp
 
-    # extract terms from corpus based on given patterns (POS NER etc)
+    # extract terms from corpus based on given patterns (POS NER etc), return top N based on frequency
     def __extract_terms(self, doc_corpus, lang = 'en', ngrmin = 1, ngrmax = 10, type_pattern = ['NP'], NER_extract = False,
             remove_emoji = True, NER_types = {"PER", "ORG", "GPE",'LOC'}, starting = None):
 
@@ -221,6 +221,13 @@ class DiscriminatoryTermsExtractor:
         print(len(sample_containing_doc_ids),' candidate terms extracted.')
         print (nb_index, ' total term occurrences.')
 
+        threshold = 1
+        sample_dictionary, sample_containing_doc_ids = self.__filter_terms_by_frequency(sample_dictionary,
+                sample_containing_doc_ids, threshold = threshold)
+
+        print()
+        print(len(sample_containing_doc_ids),' candidate terms remained after frequency filtering.')
+
         return sample_dictionary, sample_containing_doc_ids
 
     def __common_post_mistake(self, wrd):
@@ -263,3 +270,18 @@ class DiscriminatoryTermsExtractor:
 
         return hstgs_no, max(wrd_size)
 
+    def __filter_terms_by_frequency(self, sample_dictionary, sample_index, threshold = 2):
+        sample_dictionary_filtered = {}
+        sample_index_filtered = {}
+
+        for t in list(sample_dictionary.keys())[:]:
+            N = sum(sample_dictionary[t].values())
+
+            if N >= threshold:
+                sample_dictionary_filtered[t] = sample_dictionary[t]
+
+        for t in sample_index:
+            if t in sample_dictionary_filtered:
+                sample_index_filtered[t] = sample_index[t]
+
+        return sample_dictionary_filtered, sample_index_filtered
