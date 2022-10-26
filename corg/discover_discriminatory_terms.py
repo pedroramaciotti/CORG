@@ -34,7 +34,7 @@ class DiscriminatoryTermsExtractor:
         return (df)
 
     # create a document corpus and return most frequent terms
-    def extract_frequent_terms(self, txt_dim_df = None, txt_lang = None, 
+    def extract_important_terms(self, txt_dim_df = None, txt_lang = None, 
             text_column = 'text', sample_no = None): # if sample_no not None sample 
                                                      # documents to create the corpus
         if txt_dim_df is None:
@@ -72,6 +72,19 @@ class DiscriminatoryTermsExtractor:
         sample_dictionary, sample_index = self.__extract_terms(doc_corpus, lang = txt_lang, ngrmin = ngrmin,
                                                  ngrmax = ngrmax, type_pattern = type_pattern,
                                                  NER_extract = with_NER, NER_types = NER_types)
+
+        threshold = 1
+        sample_dictionary, sample_index = self.__filter_terms_by_frequency(sample_dictionary,
+                sample_index, threshold = threshold)
+
+        nested, n_dict = self.__build_nested_terms(sample_dictionary)
+
+        freq_thres = .00001
+        topn = 500
+        ranking = 'C-value'
+        word_list_df, sample_dictionary_main = self.__select_important_terms(doc_corpus, nested, sample_dictionary,
+                sample_index, n_dict, freq_thres = freq_thres, topn = int(100 * topn), ranking = ranking)
+        #word_list_df.head(5)
 
     # load a spacy pipeline: overwrite tokenization 
     # to protect hashtags(H) and mentions(@)
@@ -223,15 +236,6 @@ class DiscriminatoryTermsExtractor:
         print(len(term_containing_doc_ids),' candidate terms extracted.')
         print (nb_index, ' total term occurrences.')
 
-        threshold = 1
-        term_dictionary, term_containing_doc_ids = self.__filter_terms_by_frequency(term_dictionary,
-                term_containing_doc_ids, threshold = threshold)
-
-        print()
-        print(len(term_containing_doc_ids),' candidate terms remained after frequency filtering.')
-
-        nested, n_dict = self.__build_nested_terms(term_dictionary)
-
         return term_dictionary, term_containing_doc_ids
 
     def __common_post_mistake(self, wrd):
@@ -288,6 +292,9 @@ class DiscriminatoryTermsExtractor:
             if t in term_dictionary_filtered:
                 term_index_filtered[t] = term_index[t]
 
+        print()
+        print(len(term_index_filtered),' remaining candidate terms after frequency pre-filtering.')
+
         return term_dictionary_filtered, term_index_filtered
 
     def __build_nested_terms(self, term_dictionary):
@@ -311,6 +318,7 @@ class DiscriminatoryTermsExtractor:
             cless[x] = set(x.split())
         #print(cless)
 
+        print()
         Nn = len(ns)
         nested = {}
         for i in range(Nn - 1):
@@ -343,7 +351,91 @@ class DiscriminatoryTermsExtractor:
 
             #break
 
-        for k in nested.keys():
-            print(k, nested[k])
+        #for k in nested.keys():
+        #    print(k, nested[k])
 
         return nested, number_of_tokens_per_term
+
+    def __select_important_terms(self, doc_corpus, nested_terms, term_dictionary, 
+            term_index, n_dict, freq_thres = .0001, topn = 100, ranking = 'pigeon'):
+        return None, None
+        '''
+    N=len(corpus)
+    NW=corpus.n_tokens
+
+
+    cpigeon,pigeon,freqn,cvalues,tfidf,freqb,docb={},{},{},{},{},{},{}
+    print (len(sample_dictionary),' firsthand ')
+    for w in sample_index:
+        d = len(set(sample_index[w]))
+        f = len(sample_index[w])
+        freqb[w]=f
+        docb[w]=d
+
+        fn = f / NW
+        dth = N - N * math.pow(float((N-1)/N),f)
+        #pigeon[w]=d/dth
+        if fn>freq_thres:
+            freqn[w]=fn
+            pigeon[w]=dth/d
+            tfidf[w]=f * math.log(N/d)
+            n=len(w)
+            if not w in nested:
+                cvalue=(math.log2(n)+.1)*f
+            else:
+                fnested=0
+                #print(nested[w])
+                for nested_term in nested[w]:
+                    fnested+=len(sample_index[nested_term])
+                #print (freqn[w],nested[w],fnested,len(nested[w]),(math.log2(n)+0.1))
+                cvalue=(math.log2(n)+0.1)*(f-fnested/len(nested[w]))
+            cvalues[w]=cvalue
+            cpigeon[w]=cvalue*pigeon[w]
+        '''
+
+    '''
+    if ranking=='pigeon':
+        print (len(pigeon),' short-listed after the frequency threshold filter ')
+        key_terms_list=list(map(lambda x:x[0],sorted(pigeon.items(),key=itemgetter(1),reverse=True)))[:topn]
+        print (len(key_terms_list),' short-listed after pigeon ')
+    elif ranking=='C-value':
+        print (len(cvalues),' short-listed after the frequency threshold filter ')
+        key_terms_list=list(map(lambda x:x[0],sorted(cvalues.items(),key=itemgetter(1),reverse=True)))[:topn]
+        print (len(key_terms_list),' short-listed after c-value ')
+
+    elif ranking=='tfidf':
+        print (len(tfidf),' short-listed after the frequency threshold filter ')
+        key_terms_list=list(map(lambda x:x[0],sorted(tfidf.items(),key=itemgetter(1),reverse=True)))[:topn]
+        print (len(key_terms_list),' short-listed after tfidf ')
+
+    sample_dictionary_main={}
+    for x in key_terms_list:
+        sample_dictionary_main[x]=sorted(sample_dictionary[x].items(),key=itemgetter(1),reverse=True)[0][0]
+
+    word_list_df=pd.DataFrame(key_terms_list,columns=['lemma'])
+    word_list_df['words']=word_list_df['lemma'].map(sample_dictionary)
+    word_list_df['main_word']=word_list_df['lemma'].map(sample_dictionary_main)
+    word_list_df['normalized frequency']=word_list_df['lemma'].map(freqn)
+    word_list_df['documents']=word_list_df['lemma'].map(freqn)
+
+    word_list_df['pigeon']=word_list_df['lemma'].map(pigeon)
+    if ranking=='C-value' or ranking=='C-pigeon':
+        word_list_df['C-value']=word_list_df['lemma'].map(cvalues)
+        word_list_df['C-pigeon']=word_list_df['lemma'].map(cpigeon)
+    else:
+        word_list_df['weighted (ngr) frequency']=word_list_df['lemma'].map(cvalues)
+        word_list_df['weighted (ngr) pigeon']=word_list_df['lemma'].map(cpigeon)
+
+    word_list_df['tfidf']=word_list_df['lemma'].map(tfidf)
+    word_list_df['n']=word_list_df['lemma'].map(n_dict)
+
+
+
+    word_list_df['occurrences']=word_list_df['lemma'].map(freqb)
+    word_list_df['documents']=word_list_df['lemma'].map(docb)
+
+
+    #len(word_list_df)
+
+    return word_list_df,sample_dictionary_main
+    '''
