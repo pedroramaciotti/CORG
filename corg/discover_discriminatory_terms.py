@@ -14,6 +14,8 @@ import re
 
 import textacy
 
+from tqdm import tqdm
+
 pattern_NP = [{"POS": "ADJ", "OP": "*"}, {"POS": {'IN': ["NOUN", 'PROPN']}, "OP": "+"}, 
         {"POS": "ADJ", "OP": "*"}, {"POS": {'IN':["CC",'ADP','NUM','DET']}, "OP": "*"},
         {"POS": "ADJ", "OP": "*"}, {"POS": {'IN':["NOUN",'PROPN']}, "OP": "*"}]
@@ -117,8 +119,8 @@ class DiscriminatoryTermsExtractor:
     def __extract_terms(self, doc_corpus, lang = 'en', ngrmin = 1, ngrmax = 10, type_pattern = ['NP'], NER_extract = False,
             remove_emoji = True, NER_types = {"PER", "ORG", "GPE",'LOC'}, starting = None):
 
-        sample_dictionary = {}
-        sample_containing_doc_ids = {}
+        term_dictionary = {}
+        term_containing_doc_ids = {}
 
         pattern = [] 
         authorizez_ending_tags = []
@@ -210,25 +212,27 @@ class DiscriminatoryTermsExtractor:
                                     ws_full.sort()
                                     ws_full_ordered = ' '.join(ws_full)
                                     if len(ws_full_ordered) > 1:
-                                        if not ws_full_ordered in sample_dictionary:
-                                            sample_dictionary[ws_full_ordered] = {}
+                                        if not ws_full_ordered in term_dictionary:
+                                            term_dictionary[ws_full_ordered] = {}
                                         wst = ws.text.strip()
-                                        sample_dictionary[ws_full_ordered][wst] = sample_dictionary[ws_full_ordered].get(wst, 0) + 1
-                                        sample_containing_doc_ids.setdefault(ws_full_ordered, []).append(doc_id)
+                                        term_dictionary[ws_full_ordered][wst] = term_dictionary[ws_full_ordered].get(wst, 0) + 1
+                                        term_containing_doc_ids.setdefault(ws_full_ordered, []).append(doc_id)
                                         nb_index = nb_index + 1
 
         print()
-        print(len(sample_containing_doc_ids),' candidate terms extracted.')
+        print(len(term_containing_doc_ids),' candidate terms extracted.')
         print (nb_index, ' total term occurrences.')
 
         threshold = 1
-        sample_dictionary, sample_containing_doc_ids = self.__filter_terms_by_frequency(sample_dictionary,
-                sample_containing_doc_ids, threshold = threshold)
+        term_dictionary, term_containing_doc_ids = self.__filter_terms_by_frequency(term_dictionary,
+                term_containing_doc_ids, threshold = threshold)
 
         print()
-        print(len(sample_containing_doc_ids),' candidate terms remained after frequency filtering.')
+        print(len(term_containing_doc_ids),' candidate terms remained after frequency filtering.')
 
-        return sample_dictionary, sample_containing_doc_ids
+        nested, n_dict = self.__build_nested_terms(term_dictionary)
+
+        return term_dictionary, term_containing_doc_ids
 
     def __common_post_mistake(self, wrd):
         if wrd.text in ['-','.','\n','/']:
@@ -270,18 +274,76 @@ class DiscriminatoryTermsExtractor:
 
         return hstgs_no, max(wrd_size)
 
-    def __filter_terms_by_frequency(self, sample_dictionary, sample_index, threshold = 2):
-        sample_dictionary_filtered = {}
-        sample_index_filtered = {}
+    def __filter_terms_by_frequency(self, term_dictionary, term_index, threshold = 2):
+        term_dictionary_filtered = {}
+        term_index_filtered = {}
 
-        for t in list(sample_dictionary.keys())[:]:
-            N = sum(sample_dictionary[t].values())
+        for t in list(term_dictionary.keys())[:]:
+            N = sum(term_dictionary[t].values())
 
             if N >= threshold:
-                sample_dictionary_filtered[t] = sample_dictionary[t]
+                term_dictionary_filtered[t] = term_dictionary[t]
 
-        for t in sample_index:
-            if t in sample_dictionary_filtered:
-                sample_index_filtered[t] = sample_index[t]
+        for t in term_index:
+            if t in term_dictionary_filtered:
+                term_index_filtered[t] = term_index[t]
 
-        return sample_dictionary_filtered, sample_index_filtered
+        return term_dictionary_filtered, term_index_filtered
+
+    def __build_nested_terms(self, term_dictionary):
+        #print(term_dictionary)
+
+        number_of_tokens_per_term = {}  # term, number of tokens per term
+        n_dict_inv = {} # number of tokens, terms
+        for cle in term_dictionary:
+            n = len(cle.split())
+            number_of_tokens_per_term[cle] = n
+            # print(cle, n)
+            n_dict_inv.setdefault(n,[]).append(cle)
+        #print(n_dict_inv)
+
+        ns = list(n_dict_inv.keys()) # sort number of tokens/term
+        ns.sort()
+        #print (ns)
+
+        cless = {}  # split each term into its tokens
+        for x in list(term_dictionary.keys()):
+            cless[x] = set(x.split())
+        #print(cless)
+
+        Nn = len(ns)
+        nested = {}
+        for i in range(Nn - 1):
+            n = ns[Nn - i - 1]
+            #print(i, n)
+
+            print("Finding nested strings of size:", n)
+            larger = n_dict_inv[n]
+            smaller = []
+            for k in range(2, Nn - i + 1):
+                nminus = ns[Nn - i - k]
+                #print(nminus)
+                smaller.extend(n_dict_inv[nminus])
+            #print()
+            #print("smaller", smaller)
+            #print()
+            #print("larger", larger)
+
+            for x in tqdm(smaller, total = len(smaller)):
+                xs = cless[x]
+                #print(xs)
+
+                for y in larger:
+                    #print(y)
+                    if xs <= cless[y]:
+                        #print(xs, '------', cless[y])
+                        nested.setdefault(x,[]).append(y)
+                        if y in nested:
+                            nested[x].extend(nested[y])
+
+            #break
+
+        for k in nested.keys():
+            print(k, nested[k])
+
+        return nested, number_of_tokens_per_term
