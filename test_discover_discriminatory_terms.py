@@ -14,12 +14,15 @@ def main():
     txt_dim_df = dte.load_text_and_dimensions(params['discriminatory_terms']['text_and_dimensions_file'])
 
     # 'text_language': en, fr, de, it, es
+    important_terms_df = None
     if 'text_column' in params['discriminatory_terms'].keys():
-        dte.extract_important_terms(txt_dim_df = txt_dim_df, txt_lang =  params['discriminatory_terms']['text_language'],
-                text_column = params['discriminatory_terms']['text_column'], sample_no = 20)
+        important_terms_df = dte.extract_important_terms(txt_dim_df = txt_dim_df,
+                txt_lang =  params['discriminatory_terms']['text_language'],
+                text_column = params['discriminatory_terms']['text_column'], sample_no = 20000)
     else:
-        dte.extract_important_terms(txt_dim_df = txt_dim_df, 
+        important_terms_df = dte.extract_important_terms(txt_dim_df = txt_dim_df, 
                 txt_lang =  params['discriminatory_terms']['text_language'], sample_no = 20000)
+    print(important_terms_df)
 
 if __name__ == "__main__":
     main()
