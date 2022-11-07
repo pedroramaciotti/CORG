@@ -89,8 +89,19 @@ class DiscriminatoryTermsExtractor:
         important_terms_df, sample_dictionary_main = self.__select_important_terms(doc_corpus, nested,
                 sample_dictionary, sample_index, n_dict, freq_thres = freq_thres,
                 topn = int(100 * topn), ranking = ranking)
-        
+
         return (important_terms_df)
+
+    # given (1) an axis/dimension and (2) a subset of the dimension columns, 
+    # compute the projection of each document to (1) using (2) as its actual dimensions
+    def project_documents_to_dimension(self, txt_dim_df = None, projection_axis = None,
+            doc_dimensions = None):
+        if txt_dim_df is None:
+            raise ValueError('Text and dimensions dataframe should be provided.')
+
+        if projection_axis is None:
+            raise ValueError('List representing the projection dimension should be provided.')
+
 
     # load a spacy pipeline: overwrite tokenization 
     # to protect hashtags(H) and mentions(@)

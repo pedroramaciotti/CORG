@@ -18,11 +18,16 @@ def main():
     if 'text_column' in params['discriminatory_terms'].keys():
         important_terms_df = dte.extract_important_terms(txt_dim_df = txt_dim_df,
                 txt_lang =  params['discriminatory_terms']['text_language'],
-                text_column = params['discriminatory_terms']['text_column'], sample_no = 20000)
+                text_column = params['discriminatory_terms']['text_column'], sample_no = 20)
     else:
         important_terms_df = dte.extract_important_terms(txt_dim_df = txt_dim_df, 
                 txt_lang =  params['discriminatory_terms']['text_language'], sample_no = 20000)
-    print(important_terms_df)
+    #print(important_terms_df.columns)
+
+    projection_axis = params['discriminatory_terms']['projection_dimension'].split(':')
+    map(float, projection_axis)
+    print(projection_axis)
+    #dte.project_documents_to_dimension(txt_dim_df = txt_dim_df)
 
 if __name__ == "__main__":
     main()
