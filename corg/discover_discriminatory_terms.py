@@ -26,6 +26,9 @@ pattern_NP = [{"POS": "ADJ", "OP": "*"}, {"POS": {'IN': ["NOUN", 'PROPN']}, "OP"
 
 class DiscriminatoryTermsExtractor:
 
+    important_terms = None
+    all_term_doc_index = None
+
     def load_text_and_dimensions(self, text_and_dimensions_filename = None):
         if text_and_dimensions_filename is None:
             raise ValueError('Text and dimensions filename should be provided.')
@@ -59,10 +62,10 @@ class DiscriminatoryTermsExtractor:
         #print(len(doc_sample))
 
         nlp = self.__build_extraction_pipe(txt_lang, with_NER = False)
-        doc_corpus = textacy.Corpus(nlp, data = doc_sample)
+        sample_corpus = textacy.Corpus(nlp, data = doc_sample)
 
-        N = len(doc_corpus)
-        NW = doc_corpus.n_tokens
+        N = len(sample_corpus)
+        NW = sample_corpus.n_tokens
 
         #100 000 is good, 1M is overkill
         print(" Total number of tokens in the document corpus: ", NW)
@@ -73,7 +76,7 @@ class DiscriminatoryTermsExtractor:
         with_NER = False
         type_pattern = ['NP','VP']
         NER_types = ['PER','ORG']
-        sample_dictionary, sample_index = self.__extract_terms(doc_corpus, lang = txt_lang, ngrmin = ngrmin,
+        sample_dictionary, sample_index = self.__extract_terms(sample_corpus, lang = txt_lang, ngrmin = ngrmin,
                                                  ngrmax = ngrmax, type_pattern = type_pattern,
                                                  NER_extract = with_NER, NER_types = NER_types)
 
@@ -86,11 +89,27 @@ class DiscriminatoryTermsExtractor:
         freq_thres = .00001
         topn = 500
         ranking = 'C-value' # other possible rankings: 'pigeon', 'tfidf'
-        important_terms_df, sample_dictionary_main = self.__select_important_terms(doc_corpus, nested,
+        self.important_terms_df, sample_index = self.__select_important_terms(sample_corpus, nested, 
                 sample_dictionary, sample_index, n_dict, freq_thres = freq_thres,
                 topn = int(100 * topn), ranking = ranking)
 
-        return (important_terms_df)
+        # finally find terms and build index for all documents
+        if sample_no is not None:
+            all_docs = [str(doc) for doc in txt_dim_df[text_column]]
+            doc_corpus = textacy.Corpus(nlp, data = all_docs)
+            doc_dictionary, doc_index = self.__extract_terms(doc_corpus, lang = txt_lang,
+                    ngrmin = ngrmin, ngrmax = ngrmax, type_pattern = type_pattern,
+                    NER_extract = with_NER, NER_types = NER_types)
+        else:
+            doc_dictionary = self.important_terms_df
+            doc_index = sample_index
+        print(type(doc_index))
+
+        self.all_term_doc_index = {}
+        for k in sample_index.keys():
+            self.all_term_doc_index[k] = doc_index[k]
+
+        return (self.important_terms_df)
 
     # given (1) an axis/dimension and (2) a subset of the dimension columns, 
     # compute the projection of each document to (1) using (2) as its actual dimensions
