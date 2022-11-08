@@ -9,6 +9,7 @@ pd.set_option("display.max_columns", None)
 
 import spacy
 from spacy.tokenizer import _get_regex_pattern
+from spacy.matcher import PhraseMatcher
 
 import re
 
@@ -93,20 +94,21 @@ class DiscriminatoryTermsExtractor:
                 sample_dictionary, sample_index, n_dict, freq_thres = freq_thres,
                 topn = int(100 * topn), ranking = ranking)
 
-        # finally find terms and build index for all documents
-        if sample_no is not None:
-            all_docs = [str(doc) for doc in txt_dim_df[text_column]]
-            doc_corpus = textacy.Corpus(nlp, data = all_docs)
-            doc_dictionary, doc_index = self.__extract_terms(doc_corpus, lang = txt_lang,
-                    ngrmin = ngrmin, ngrmax = ngrmax, type_pattern = type_pattern,
-                    NER_extract = with_NER, NER_types = NER_types)
-        else:
-            doc_dictionary = self.important_terms_df
-            doc_index = sample_index
+        # index documents based on above terms
+        sample_dictionary_main = dict(zip(self.important_terms_df['lemma'],
+            self.important_terms_df['main_word']))
+        sample_dictionary = dict(zip(self.important_terms_df['lemma'],
+            self.important_terms_df['words']))
+        for x in sample_dictionary:
+            sample_dictionary[x] = eval(str(sample_dictionary[x]))
 
-        self.all_term_doc_index = {}
-        for k in sample_index.keys():
-            self.all_term_doc_index[k] = doc_index[k]
+        case_insensitive = True
+        all_docs = txt_dim_df[text_column]
+        nlp, matcher = self.__build_indexation_pipe(txt_lang, case_insensitive = case_insensitive)
+        matcher, minimal_query = self.__feed_matcher(nlp, matcher, sample_dictionary, sample_dictionary_main)
+
+        # TODO
+        # count, count_doc, dict_forms = self.__index_terms(all_docs, sample_dictionary_main, nlp, matcher, type_export = 'simple')
 
         return (self.important_terms_df)
 
@@ -151,6 +153,8 @@ class DiscriminatoryTermsExtractor:
 
         if (len(projection_direction) != len(dimension_columns)):
             raise ValueError('Lists representing dimension columns and projection dimension should have same length.')
+
+        # identify documents to project and keep only their dimension columns
 
 
     # load a spacy pipeline: overwrite tokenization 
@@ -500,3 +504,70 @@ class DiscriminatoryTermsExtractor:
         word_list_df['documents'] = word_list_df['lemma'].map(term_doc_no)
 
         return word_list_df, sample_dictionary_main
+
+    def __build_indexation_pipe(self, lang, case_insensitive=True):
+        model = None
+        if lang == 'en':
+            model = "en_core_web_sm"
+        elif lang == 'fr':
+            model = "fr_core_news_sm"
+        elif lang == 'it':
+            model = "it_core_news_sm"
+        elif lang == 'de':
+            model = "de_core_news_sm"
+        elif lang == 'es':
+            model = "es_core_news_sm"
+
+        nlp = spacy.load(model, disable = ('parser', 'ner', 'tok2vec',
+            'tagger', 'morphologizer', 'lemmatizer'))
+        nlp.add_pipe('sentencizer')
+        nlp.add_pipe("emoji", first = True)
+
+        # protect hashtags and mentions
+        # get default pattern for tokens that don't get split
+        re_token_match = _get_regex_pattern(nlp.Defaults.token_match)
+
+        # add your patterns (here: hashtags and in-word hyphens)
+        # re_token_match = f"({re_token_match}|@\w+|#\w+|\w+-\w+)"
+        re_token_match = f"({re_token_match}|@[A-Za-z]+|#[A-Za-z]+|[A-Za-z]+-[A-Za-z]+)"
+
+        # overwrite token_match function of the tokenizer
+        nlp.tokenizer.token_match = re.compile(re_token_match).match
+
+        if case_insensitive:
+            matcher = PhraseMatcher(nlp.vocab, attr = 'LOWER')
+        else:
+            matcher = PhraseMatcher(nlp.vocab)
+
+        return nlp, matcher
+
+    def __feed_matcher(self, nlp, matcher, sample_dictionary, sample_dictionary_main):
+        minimal_query = {}
+
+        for cle in sample_dictionary_main:
+            words = list(sample_dictionary[cle].keys())
+
+            Nounphrases_list = self.__substring(words)
+
+            minimal_query[cle] = Nounphrases_list
+
+            patterns = [nlp.make_doc(Nounphrases) for Nounphrases in Nounphrases_list]
+
+            matcher.add(cle, patterns)
+
+        return matcher, minimal_query
+
+    def __substring(self, string_list):
+        string_list.sort(key = lambda s: len(s))
+        out = []
+        for s in string_list:
+            if not any([self.__sub_string(o, s) for o in out]):
+                out.append(s)
+        return out
+
+    def __sub_string(self, o, s):
+        if o in s:
+            os = set(o.split())
+            ss = set(s.split())
+            if os.issubset(ss):
+                return True
