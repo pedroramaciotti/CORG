@@ -103,7 +103,6 @@ class DiscriminatoryTermsExtractor:
         else:
             doc_dictionary = self.important_terms_df
             doc_index = sample_index
-        print(type(doc_index))
 
         self.all_term_doc_index = {}
         for k in sample_index.keys():
@@ -113,13 +112,45 @@ class DiscriminatoryTermsExtractor:
 
     # given (1) an axis/dimension and (2) a subset of the dimension columns, 
     # compute the projection of each document to (1) using (2) as its actual dimensions
-    def project_documents_to_dimension(self, txt_dim_df = None, projection_axis = None,
-            doc_dimensions = None):
+    def project_documents_to_dimension(self, txt_dim_df = None, projection_direction = None,
+            projection_position = None, dimension_columns = None):
         if txt_dim_df is None:
             raise ValueError('Text and dimensions dataframe should be provided.')
 
-        if projection_axis is None:
-            raise ValueError('List representing the projection dimension should be provided.')
+        if projection_direction is None:
+            raise ValueError('List representing the projection direction should be provided.')
+
+        if not (type(projection_direction) is list):
+            raise ValueError('Object representing the projection direction should be a list.')
+
+        if len(projection_direction) == 0:
+            raise ValueError('List representing the projection direction should not be empty.')
+
+        # convert to list of floats
+        map(float, projection_direction)
+
+        if projection_position is None:
+            raise ValueError('List representing the projection position should be provided.')
+
+        if not (type(projection_position) is list):
+            raise ValueError('Object representing the projection position should be a list.')
+
+        if len(projection_position) == 0:
+            raise ValueError('List representing the projection position should not be empty.')
+
+        map(float, projection_position)
+
+        if (len(projection_direction) != len(projection_position)):
+            raise ValueError('Lists representing projection directions and projection positions should have same length.')
+
+        if dimension_columns is None:
+            raise ValueError('List representing the dimension columns should be provided.')
+
+        if not (type(dimension_columns) is list):
+            raise ValueError('Object representing the dimension columns should be a list.')
+
+        if (len(projection_direction) != len(dimension_columns)):
+            raise ValueError('Lists representing dimension columns and projection dimension should have same length.')
 
 
     # load a spacy pipeline: overwrite tokenization 

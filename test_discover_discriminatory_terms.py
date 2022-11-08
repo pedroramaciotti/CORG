@@ -23,12 +23,19 @@ def main():
     else:
         important_terms_df = dte.extract_important_terms(txt_dim_df = txt_dim_df, 
                 txt_lang =  params['discriminatory_terms']['text_language'], sample_no = 20000)
-    print(dte.all_term_doc_index)
 
-    projection_axis = params['discriminatory_terms']['projection_dimension'].split(':')
-    map(float, projection_axis)
-    print(projection_axis)
-    #dte.project_documents_to_dimension(txt_dim_df = txt_dim_df)
+    projection_direction = params['discriminatory_terms']['projection_direction_vector'].split(':')
+    map(float, projection_direction)
+    #print(projection_direction)
+    #
+    projection_position = params['discriminatory_terms']['projection_position_vector'].split(':')
+    map(float, projection_position)
+    #print(projection_position)
+
+    dimension_columns = params['discriminatory_terms']['dimension_columns'].split(':')
+    #print(dimension_columns)
+    dte.project_documents_to_dimension(txt_dim_df, projection_direction,
+            projection_position, dimension_columns)
 
 if __name__ == "__main__":
     main()
