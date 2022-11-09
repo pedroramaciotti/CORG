@@ -27,8 +27,9 @@ pattern_NP = [{"POS": "ADJ", "OP": "*"}, {"POS": {'IN': ["NOUN", 'PROPN']}, "OP"
 
 class DiscriminatoryTermsExtractor:
 
-    important_terms = None
-    all_term_doc_index = None
+    important_terms_df = None
+    doc_terms = None
+    doc_term_index = None
 
     def load_text_and_dimensions(self, text_and_dimensions_filename = None):
         if text_and_dimensions_filename is None:
@@ -106,9 +107,18 @@ class DiscriminatoryTermsExtractor:
         all_docs = txt_dim_df[text_column]
         nlp, matcher = self.__build_indexation_pipe(txt_lang, case_insensitive = case_insensitive)
         matcher, minimal_query = self.__feed_matcher(nlp, matcher, sample_dictionary, sample_dictionary_main)
+        #
+        self.doc_terms, term_index, _ = self.__index_terms(all_docs, nlp, matcher)
 
-        # TODO
-        # count, count_doc, dict_forms = self.__index_terms(all_docs, sample_dictionary_main, nlp, matcher, type_export = 'simple')
+        self.important_terms_df = self.important_terms_df.loc[self.important_terms_df['lemma'].
+                isin(self.doc_terms.keys())]
+
+        self.doc_term_index = {}   # convert doc index numbers to doc IDs
+        for k in tqdm(term_index.keys()):
+            self.doc_term_index[k] = []
+            for d in term_index[k]:
+                d_id = str(txt_dim_df.iloc[[d]]['id'].values[0])
+                self.doc_term_index[k].append(d_id)
 
         return (self.important_terms_df)
 
@@ -571,3 +581,39 @@ class DiscriminatoryTermsExtractor:
             ss = set(s.split())
             if os.issubset(ss):
                 return True
+
+    def __index_terms(self, docs, nlp, matcher, nested = {}):
+        count = {}
+        count_doc = {}
+        rows = []
+        lihgtrows = []
+        forms_dict = {}
+
+        for i, couple in tqdm(enumerate(docs), total = len(docs)):
+            text = couple
+            doc_id = i
+
+            doc = nlp(str(text).replace("▒~@~Y","'"))
+
+            for sent_id, sent in enumerate(doc.sents):
+                matches = matcher(sent)
+
+                found_matches = []
+                for match_id, start, end in matches:
+                    found_matches.append(nlp.vocab.strings[match_id])
+                found_matches = set(found_matches)
+
+                for match_id, start, end in matches:
+
+                    span = doc[start:end]
+                    match_id_string = nlp.vocab.strings[match_id]
+
+                    if len(set(nested.get(match_id_string,[])) & found_matches) == 0:
+                        count_doc.setdefault(match_id_string,[]).append(doc_id)
+                        count[match_id_string] = count.get(match_id_string, 0) + 1
+
+                        if not match_id_string in forms_dict:
+                            forms_dict[match_id_string]={}
+                        forms_dict[match_id_string][span.text] = forms_dict[match_id_string].get(span.text, 0) + 1
+
+        return (count, count_doc, forms_dict)
