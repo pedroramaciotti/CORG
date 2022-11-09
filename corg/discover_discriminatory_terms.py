@@ -31,6 +31,8 @@ class DiscriminatoryTermsExtractor:
     doc_terms = None
     doc_term_index = None
 
+    txt_dim_df = None
+
     def load_text_and_dimensions(self, text_and_dimensions_filename = None):
         if text_and_dimensions_filename is None:
             raise ValueError('Text and dimensions filename should be provided.')
@@ -120,14 +122,16 @@ class DiscriminatoryTermsExtractor:
                 d_id = str(txt_dim_df.iloc[[d]]['id'].values[0])
                 self.doc_term_index[k].append(d_id)
 
+        self.txt_dim_df = txt_dim_df
+
         return (self.important_terms_df)
 
     # given (1) an axis/dimension and (2) a subset of the dimension columns, 
     # compute the projection of each document to (1) using (2) as its actual dimensions
-    def project_documents_to_dimension(self, txt_dim_df = None, projection_direction = None,
-            projection_position = None, dimension_columns = None):
-        if txt_dim_df is None:
-            raise ValueError('Text and dimensions dataframe should be provided.')
+    def project_documents_to_dimension(self, projection_direction = None, projection_position = None,
+            dimension_columns = None):
+        if self.txt_dim_df is None:
+            raise ValueError('Text and dimensions dataframe is not set.')
 
         if projection_direction is None:
             raise ValueError('List representing the projection direction should be provided.')
@@ -164,7 +168,15 @@ class DiscriminatoryTermsExtractor:
         if (len(projection_direction) != len(dimension_columns)):
             raise ValueError('Lists representing dimension columns and projection dimension should have same length.')
 
+        for dc in dimension_columns:
+            if dc not in self.txt_dim_df.columns:
+                raise ValueError('Document dimension does not exist.')
+
         # identify documents to project and keep only their dimension columns
+        docs_to_project = {}
+        for docs in self.doc_term_index.values():
+            for d in docs:
+                docs_to_project[d] = None
 
 
     # load a spacy pipeline: overwrite tokenization 

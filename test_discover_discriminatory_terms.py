@@ -34,8 +34,7 @@ def main():
 
     dimension_columns = params['discriminatory_terms']['dimension_columns'].split(':')
     #print(dimension_columns)
-    dte.project_documents_to_dimension(txt_dim_df, projection_direction,
-            projection_position, dimension_columns)
+    dte.project_documents_to_dimension(projection_direction, projection_position, dimension_columns)
 
 if __name__ == "__main__":
     main()
