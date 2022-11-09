@@ -21,6 +21,8 @@ import math
 
 from operator import itemgetter
 
+import numpy as np
+
 pattern_NP = [{"POS": "ADJ", "OP": "*"}, {"POS": {'IN': ["NOUN", 'PROPN']}, "OP": "+"}, 
         {"POS": "ADJ", "OP": "*"}, {"POS": {'IN':["CC",'ADP','NUM','DET']}, "OP": "*"},
         {"POS": "ADJ", "OP": "*"}, {"POS": {'IN':["NOUN",'PROPN']}, "OP": "*"}]
@@ -32,6 +34,8 @@ class DiscriminatoryTermsExtractor:
     doc_term_index = None
 
     txt_dim_df = None
+
+    doc_projection_df = None
 
     def load_text_and_dimensions(self, text_and_dimensions_filename = None):
         if text_and_dimensions_filename is None:
@@ -142,9 +146,6 @@ class DiscriminatoryTermsExtractor:
         if len(projection_direction) == 0:
             raise ValueError('List representing the projection direction should not be empty.')
 
-        # convert to list of floats
-        map(float, projection_direction)
-
         if projection_position is None:
             raise ValueError('List representing the projection position should be provided.')
 
@@ -153,8 +154,6 @@ class DiscriminatoryTermsExtractor:
 
         if len(projection_position) == 0:
             raise ValueError('List representing the projection position should not be empty.')
-
-        map(float, projection_position)
 
         if (len(projection_direction) != len(projection_position)):
             raise ValueError('Lists representing projection directions and projection positions should have same length.')
@@ -178,6 +177,22 @@ class DiscriminatoryTermsExtractor:
             for d in docs:
                 docs_to_project[d] = None
 
+        self.doc_projection_df = self.txt_dim_df[['id'] + dimension_columns].copy()
+        self.doc_projection_df['id'] = self.doc_projection_df['id'].astype(str)
+        self.doc_projection_df = self.doc_projection_df.loc[self.doc_projection_df['id'].isin(docs_to_project.keys())]
+
+        doc_projections = []
+        for _, row in self.doc_projection_df.iterrows():
+            doc_dim = []
+            for dc in dimension_columns:
+                doc_dim.append(row[dc])
+            map(float, doc_dim)
+            doc_proj = self.__compute_doc_projection(C = doc_dim, A = projection_direction, B = projection_position)
+            doc_projections.append(doc_proj)
+
+        self.doc_projection_df['doc_projection'] = doc_projections
+
+        return (self.doc_projection_df)
 
     # load a spacy pipeline: overwrite tokenization 
     # to protect hashtags(H) and mentions(@)
@@ -629,3 +644,26 @@ class DiscriminatoryTermsExtractor:
                         forms_dict[match_id_string][span.text] = forms_dict[match_id_string].get(span.text, 0) + 1
 
         return (count, count_doc, forms_dict)
+
+    # projection of a point with position vector C on a line with
+    # direction ratio C and a point with position vector B
+    def __compute_doc_projection(self, C, A, B):
+        c_np = np.array(C, dtype = np.float32)
+        a_np = np.array(A, dtype = np.float32)
+        b_np = np.array(B, dtype = np.float32)
+
+        cb_np = c_np - b_np
+
+        a_cb_np = np.inner(a_np, cb_np)
+        a_cb_a_np = np.inner(a_cb_np, a_np)
+        a_a_np = np.inner(a_np, a_np)
+        proj_tmp = a_cb_a_np / a_a_np
+
+        proj = c_np - (cb_np - proj_tmp)
+
+        proj_str = ''
+        for n in proj:
+            proj_str = proj_str + ':' + str(n)
+        proj_str = proj_str[1:]
+
+        return (proj_str)
