@@ -23,6 +23,8 @@ from operator import itemgetter
 
 import numpy as np
 
+import scipy
+
 pattern_NP = [{"POS": "ADJ", "OP": "*"}, {"POS": {'IN': ["NOUN", 'PROPN']}, "OP": "+"}, 
         {"POS": "ADJ", "OP": "*"}, {"POS": {'IN':["CC",'ADP','NUM','DET']}, "OP": "*"},
         {"POS": "ADJ", "OP": "*"}, {"POS": {'IN':["NOUN",'PROPN']}, "OP": "*"}]
@@ -128,6 +130,8 @@ class DiscriminatoryTermsExtractor:
 
         self.txt_dim_df = txt_dim_df
 
+        doc_projection_df = None
+
         return (self.important_terms_df)
 
     # given (1) an axis/dimension and (2) a subset of the dimension columns, 
@@ -171,6 +175,9 @@ class DiscriminatoryTermsExtractor:
             if dc not in self.txt_dim_df.columns:
                 raise ValueError('Document dimension does not exist.')
 
+        if self.doc_term_index is None:
+            raise ValueError('Term index is not set.')
+
         # identify documents to project and keep only their dimension columns
         docs_to_project = {}
         for docs in self.doc_term_index.values():
@@ -187,12 +194,82 @@ class DiscriminatoryTermsExtractor:
             for dc in dimension_columns:
                 doc_dim.append(row[dc])
             map(float, doc_dim)
-            doc_proj = self.__compute_doc_projection(C = doc_dim, A = projection_direction, B = projection_position)
+            doc_proj = self.__compute_doc_projection(C = doc_dim, A = projection_direction,
+                    B = projection_position)
             doc_projections.append(doc_proj)
 
         self.doc_projection_df['doc_projection'] = doc_projections
 
         return (self.doc_projection_df)
+
+    def compute_term_perplexity_and_skewness(self, histogram_bins = 5):
+        if self.doc_term_index is None:
+            raise ValueError('Important terms have not been not computed.')
+
+        if self.doc_projection_df is None:
+            raise ValueError('Document projections have not been computed.')
+
+        term_metrics_df = pd.DataFrame(columns = ['term', 'doc_xs', 'histogram', 'perplexity', 'skewness'])
+
+        for t in tqdm(self.doc_term_index.keys()):
+            t_docs = self.doc_term_index[t]
+            doc_proj = []
+            for d in t_docs:
+                dprj = self.doc_projection_df.loc[self.doc_projection_df['id'] == d]
+                doc_proj.append(dprj['doc_projection'].values[0])
+
+            if len(doc_proj) < histogram_bins:
+                continue
+            else:
+                xs, term_hist = self.__compute_histogram_from_projections(doc_proj, histogram_bins)
+                xs_s = ''
+                for x in xs:
+                    xs_s = xs_s + ':' + str(x)
+                h_s = ''
+                for x in term_hist:
+                    h_s = h_s + ':' + str(x)
+
+                # compute perplexity
+                plogp = 0.0
+                for h in term_hist:
+                    if h <= 0:
+                        h_r = 0.0000000001
+                    else:
+                        h_r = h
+                    plogp = plogp + h_r * math.log(h_r)
+                prplxt = math.pow(2.0, (-1.0) * plogp) 
+
+                skewness = scipy.stats.skew(xs, axis = 0, bias = True)
+                term_metrics_df.loc[len(term_metrics_df)] = [t, xs_s[1:], h_s[1:], prplxt, skewness]
+
+        return (term_metrics_df)
+
+    def __compute_histogram_from_projections(self, doc_proj, histogram_bins):
+        prj_lst = []
+
+        for p in doc_proj:
+            p_l = p.split(':')
+            p_np = np.array(p_l, dtype = np.float32)
+            prj_lst.append(p_np)
+
+        # compute 'x' of each document on the projection
+        d_max = 0  # first find one end point - most extreme point
+        random_p = prj_lst[0]
+        end_p_index = 0
+        for i in range(len(prj_lst)):
+            d = np.sqrt(np.sum(np.square(random_p - prj_lst[i]))) # euclidean distance
+            if d > d_max:
+                end_p_index = i
+                d_max = d
+        # and then compute distances from that end point
+        doc_xs = []
+        for i in range(len(prj_lst)):
+            d = np.sqrt(np.sum(np.square(prj_lst[end_p_index] - prj_lst[i]))) # euclidean distance
+            doc_xs.append(d)
+
+        hist = np.histogram(doc_xs, bins = histogram_bins, density = True)
+
+        return (doc_xs, hist[0])
 
     # load a spacy pipeline: overwrite tokenization 
     # to protect hashtags(H) and mentions(@)
