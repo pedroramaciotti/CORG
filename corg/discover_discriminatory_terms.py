@@ -189,16 +189,23 @@ class DiscriminatoryTermsExtractor:
         self.doc_projection_df = self.doc_projection_df.loc[self.doc_projection_df['id'].isin(docs_to_project.keys())]
 
         doc_projections = []
+        doc_line_positions = []
+        doc_prj_lst = []
         for _, row in self.doc_projection_df.iterrows():
             doc_dim = []
             for dc in dimension_columns:
                 doc_dim.append(row[dc])
             map(float, doc_dim)
-            doc_proj = self.__compute_doc_projection(C = doc_dim, A = projection_direction,
+            doc_proj_str, doc_proj = self.__compute_doc_projection(C = doc_dim, A = projection_direction,
                     B = projection_position)
-            doc_projections.append(doc_proj)
+            doc_projections.append(doc_proj_str)
+            doc_prj_lst.append(doc_proj)
 
         self.doc_projection_df['doc_projection'] = doc_projections
+
+        # also compute relative postions of all documents
+        doc_xs = self.__compute_document_line_positions_from_projection(doc_prj_lst)
+        self.doc_projection_df['doc_relative_line_position'] = doc_xs
 
         return (self.doc_projection_df)
 
@@ -270,6 +277,24 @@ class DiscriminatoryTermsExtractor:
         hist = np.histogram(doc_xs, bins = histogram_bins, density = True)
 
         return (doc_xs, hist[0])
+
+    def __compute_document_line_positions_from_projection(self, doc_prj_lst):
+        # compute 'x' of each document on the projection
+        d_max = 0  # first find one end point - most extreme point
+        random_p = doc_prj_lst[0]
+        end_p_index = 0
+        for i in range(len(doc_prj_lst)):
+            d = np.sqrt(np.sum(np.square(random_p - doc_prj_lst[i]))) # euclidean distance
+            if d > d_max:
+                end_p_index = i
+                d_max = d
+        # and then compute distances from that end point
+        doc_xs = []
+        for i in range(len(doc_prj_lst)):
+            d = np.sqrt(np.sum(np.square(doc_prj_lst[end_p_index] - doc_prj_lst[i]))) # euclidean distance
+            doc_xs.append(d)
+
+        return (doc_xs)
 
     # load a spacy pipeline: overwrite tokenization 
     # to protect hashtags(H) and mentions(@)
@@ -743,4 +768,4 @@ class DiscriminatoryTermsExtractor:
             proj_str = proj_str + ':' + str(n)
         proj_str = proj_str[1:]
 
-        return (proj_str)
+        return (proj_str, proj)
