@@ -216,25 +216,24 @@ class DiscriminatoryTermsExtractor:
         if self.doc_projection_df is None:
             raise ValueError('Document projections have not been computed.')
 
-        term_metrics_df = pd.DataFrame(columns = ['term', 'doc_xs', 'histogram', 'perplexity', 'skewness'])
+        term_metrics_df = pd.DataFrame(columns = ['term', 'histogram', 'perplexity', 'skewness'])
 
         for t in tqdm(self.doc_term_index.keys()):
             t_docs = self.doc_term_index[t]
-            doc_proj = []
+            xs = []
             for d in t_docs:
                 dprj = self.doc_projection_df.loc[self.doc_projection_df['id'] == d]
-                doc_proj.append(dprj['doc_projection'].values[0])
+                xs.append(dprj['doc_relative_line_position'].values[0])
 
-            if len(doc_proj) < histogram_bins:
+            if len(xs) < histogram_bins:
                 continue
             else:
-                xs, term_hist = self.__compute_histogram_from_projections(doc_proj, histogram_bins)
-                xs_s = ''
-                for x in xs:
-                    xs_s = xs_s + ':' + str(x)
+                # compute histogram
+                term_hist = np.histogram(xs, bins = histogram_bins, density = True)[0]
                 h_s = ''
                 for x in term_hist:
                     h_s = h_s + ':' + str(x)
+                #print(term_hist)
 
                 # compute perplexity
                 plogp = 0.0
@@ -246,37 +245,11 @@ class DiscriminatoryTermsExtractor:
                     plogp = plogp + h_r * math.log(h_r)
                 prplxt = math.pow(2.0, (-1.0) * plogp) 
 
+                # and skewness
                 skewness = scipy.stats.skew(xs, axis = 0, bias = True)
-                term_metrics_df.loc[len(term_metrics_df)] = [t, xs_s[1:], h_s[1:], prplxt, skewness]
+                term_metrics_df.loc[len(term_metrics_df)] = [t, h_s[1:], prplxt, skewness]
 
         return (term_metrics_df)
-
-    def __compute_histogram_from_projections(self, doc_proj, histogram_bins):
-        prj_lst = []
-
-        for p in doc_proj:
-            p_l = p.split(':')
-            p_np = np.array(p_l, dtype = np.float32)
-            prj_lst.append(p_np)
-
-        # compute 'x' of each document on the projection
-        d_max = 0  # first find one end point - most extreme point
-        random_p = prj_lst[0]
-        end_p_index = 0
-        for i in range(len(prj_lst)):
-            d = np.sqrt(np.sum(np.square(random_p - prj_lst[i]))) # euclidean distance
-            if d > d_max:
-                end_p_index = i
-                d_max = d
-        # and then compute distances from that end point
-        doc_xs = []
-        for i in range(len(prj_lst)):
-            d = np.sqrt(np.sum(np.square(prj_lst[end_p_index] - prj_lst[i]))) # euclidean distance
-            doc_xs.append(d)
-
-        hist = np.histogram(doc_xs, bins = histogram_bins, density = True)
-
-        return (doc_xs, hist[0])
 
     def __compute_document_line_positions_from_projection(self, doc_prj_lst):
         # compute 'x' of each document on the projection

@@ -37,10 +37,10 @@ def main():
     #print(dimension_columns)
     doc_proj_df = dte.project_documents_to_dimension(projection_direction,
             projection_position, dimension_columns)
-    print(doc_proj_df)
+    #print(doc_proj_df)
 
-    #term_metrics_df = dte.compute_term_perplexity_and_skewness(histogram_bins = 5)
-    #print(term_metrics_df)
+    term_metrics_df = dte.compute_term_perplexity_and_skewness(histogram_bins = 5)
+    print(term_metrics_df)
 
 if __name__ == "__main__":
     main()
