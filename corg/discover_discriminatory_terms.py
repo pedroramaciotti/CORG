@@ -218,22 +218,34 @@ class DiscriminatoryTermsExtractor:
 
         term_metrics_df = pd.DataFrame(columns = ['term', 'histogram', 'perplexity', 'skewness'])
 
+        doc_projection_dict = {}
+        for _, row in tqdm(self.doc_projection_df.iterrows()):
+            doc_projection_dict[row['id']] = float(row['doc_relative_line_position'])
+
+        terms = []
+        histograms = []
+        perplexities = []
+        skewness = []
         for t in tqdm(self.doc_term_index.keys()):
             t_docs = self.doc_term_index[t]
             xs = []
             for d in t_docs:
-                dprj = self.doc_projection_df.loc[self.doc_projection_df['id'] == d]
-                xs.append(dprj['doc_relative_line_position'].values[0])
+                xs.append(doc_projection_dict[d])
+                #dprj = self.doc_projection_df.loc[self.doc_projection_df['id'] == d]
+                #xs.append(dprj['doc_relative_line_position'].values[0])
 
             if len(xs) < histogram_bins:
                 continue
             else:
+                terms.append(t)
+
                 # compute histogram
                 term_hist = np.histogram(xs, bins = histogram_bins, density = True)[0]
                 h_s = ''
                 for x in term_hist:
                     h_s = h_s + ':' + str(x)
                 #print(term_hist)
+                histograms.append(h_s[1:])
 
                 # compute perplexity
                 plogp = 0.0
@@ -244,10 +256,16 @@ class DiscriminatoryTermsExtractor:
                         h_r = h
                     plogp = plogp + h_r * math.log(h_r)
                 prplxt = math.pow(2.0, (-1.0) * plogp) 
+                perplexities.append(prplxt)
 
                 # and skewness
-                skewness = scipy.stats.skew(xs, axis = 0, bias = True)
-                term_metrics_df.loc[len(term_metrics_df)] = [t, h_s[1:], prplxt, skewness]
+                skew = scipy.stats.skew(xs, axis = 0, bias = True)
+                skewness.append(skew)
+
+        term_metrics_df['term'] = terms
+        term_metrics_df['histogram'] = histograms
+        term_metrics_df['perplexity'] = perplexities
+        term_metrics_df['skewness'] = skewness
 
         return (term_metrics_df)
 
