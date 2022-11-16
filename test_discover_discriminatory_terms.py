@@ -12,17 +12,19 @@ def main():
 
     dte = DiscriminatoryTermsExtractor()
     txt_dim_df = dte.load_text_and_dimensions(params['discriminatory_terms']['text_and_dimensions_file'])
-    #txt_dim_df = txt_dim_df.sample(1000)
+    txt_dim_df = txt_dim_df.sample(1000)
 
     # 'text_language': en, fr, de, it, es
     important_terms_df = None
     if 'text_column' in params['discriminatory_terms'].keys():
         important_terms_df = dte.extract_important_terms(txt_dim_df = txt_dim_df,
                 txt_lang =  params['discriminatory_terms']['text_language'],
-                text_column = params['discriminatory_terms']['text_column'], sample_no = 20000)
+                text_column = params['discriminatory_terms']['text_column'], sample_no = 200)
+                #text_column = params['discriminatory_terms']['text_column'], sample_no = 20000)
     else:
         important_terms_df = dte.extract_important_terms(txt_dim_df = txt_dim_df, 
                 txt_lang =  params['discriminatory_terms']['text_language'], sample_no = 20000)
+    #print(important_terms_df)
 
     projection_direction = params['discriminatory_terms']['projection_direction_vector'].split(':')
     map(float, projection_direction)
@@ -38,8 +40,9 @@ def main():
             projection_position, dimension_columns)
     #print(doc_proj_df)
 
-    term_metrics_df = dte.compute_term_perplexity_and_skewness(histogram_bins = 5)
-    print(term_metrics_df)
+    term_metrics_df = dte.compute_term_perplexity_and_skewness(histogram_bins = 7)
+    #print(term_metrics_df)
+    term_metrics_df.to_csv(params['discriminatory_terms']['discriminatory_term_file'], index = False)
 
 if __name__ == "__main__":
     main()

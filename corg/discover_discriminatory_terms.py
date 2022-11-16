@@ -216,16 +216,26 @@ class DiscriminatoryTermsExtractor:
         if self.doc_projection_df is None:
             raise ValueError('Document projections have not been computed.')
 
-        term_metrics_df = pd.DataFrame(columns = ['term', 'histogram', 'perplexity', 'skewness'])
+        term_metrics_df = pd.DataFrame(columns = ['term', 'sample_pigeon', 
+            'sample_C-value', 'sample_C-pigeon', 'sample_tfidf', 'histogram', 'perplexity', 'skewness'])
 
         doc_projection_dict = {}
         for _, row in tqdm(self.doc_projection_df.iterrows()):
             doc_projection_dict[row['id']] = float(row['doc_relative_line_position'])
 
+        important_terms_dict = {}
+        for _, row in tqdm(self.important_terms_df.iterrows()):
+            important_terms_dict[row['lemma']] = str(row['pigeon']) + ':' + \
+                    str(row['C-value']) + ':' + str(row['C-pigeon']) + ':' + str(row['tfidf'])
+
         terms = []
         histograms = []
         perplexities = []
         skewness = []
+        sample_pigeon = []
+        sample_C_value = []
+        sample_C_pigeon = []
+        sample_tfidf = []
         for t in tqdm(self.doc_term_index.keys()):
             t_docs = self.doc_term_index[t]
             xs = []
@@ -262,10 +272,20 @@ class DiscriminatoryTermsExtractor:
                 skew = scipy.stats.skew(xs, axis = 0, bias = True)
                 skewness.append(skew)
 
+                trm_metrics = important_terms_dict[t].split(':')
+                sample_pigeon.append(float(trm_metrics[0]))
+                sample_C_value.append(float(trm_metrics[1]))
+                sample_C_pigeon.append(float(trm_metrics[2]))
+                sample_tfidf.append(float(trm_metrics[3]))
+
         term_metrics_df['term'] = terms
         term_metrics_df['histogram'] = histograms
         term_metrics_df['perplexity'] = perplexities
         term_metrics_df['skewness'] = skewness
+        term_metrics_df['sample_pigeon'] = sample_pigeon
+        term_metrics_df['sample_C-value'] = sample_C_value
+        term_metrics_df['sample_C-pigeon'] = sample_C_pigeon
+        term_metrics_df['sample_tfidf'] = sample_tfidf
 
         return (term_metrics_df)
 
