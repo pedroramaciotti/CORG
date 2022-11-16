@@ -52,8 +52,8 @@ class DiscriminatoryTermsExtractor:
 
     # create a document corpus and return most frequent terms
     def extract_important_terms(self, txt_dim_df = None, txt_lang = None, 
-            text_column = 'text', sample_no = None): # if sample_no not None sample 
-                                                     # documents to create the corpus
+            text_column = 'text', sample_no = None, topn = 500): # if sample_no not None sample 
+                                                                 # documents to create the corpus
         if txt_dim_df is None:
             raise ValueError('Text and dimensions dataframe should be provided.')
 
@@ -78,8 +78,8 @@ class DiscriminatoryTermsExtractor:
         NW = sample_corpus.n_tokens
 
         #100 000 is good, 1M is overkill
-        print(" Total number of tokens in the document corpus: ", NW)
-        print(" Sampled over a number of documents: ", N)
+        print("\nTotal number of tokens in the document corpus: ", NW)
+        print("Sampled over a number of documents: ", N)
 
         ngrmin = 1
         ngrmax = 3
@@ -94,14 +94,17 @@ class DiscriminatoryTermsExtractor:
         sample_dictionary, sample_index = self.__filter_terms_by_frequency(sample_dictionary,
                 sample_index, threshold = threshold)
 
+        # build N-grams of 2 and 3
         nested, n_dict = self.__build_nested_terms(sample_dictionary)
 
-        freq_thres = .00001
-        topn = 500
+        freq_thres = -0.1 # not used
+        #freq_thres = .00001
+        #topn = 500
         ranking = 'C-value' # other possible rankings: 'pigeon', 'tfidf'
         self.important_terms_df, sample_index = self.__select_important_terms(sample_corpus, nested, 
                 sample_dictionary, sample_index, n_dict, freq_thres = freq_thres,
-                topn = int(100 * topn), ranking = ranking)
+                topn = topn, ranking = ranking)
+                #topn = int(100 * topn), ranking = ranking)
 
         # index documents based on above terms
         sample_dictionary_main = dict(zip(self.important_terms_df['lemma'],
@@ -613,7 +616,7 @@ class DiscriminatoryTermsExtractor:
 
         if ranking == 'pigeon':
             print (len(pigeon),' short-listed after the frequency proportion threshold filter ')
-            key_terms_list = list(map(lambda x:x[0], sorted(pigeon.items(), key = itemgetter(1), reverse=True)))[:topn]
+            key_terms_list = list(map(lambda x:x[0], sorted(pigeon.items(), key = itemgetter(1), reverse = True)))[:topn]
             print (len(key_terms_list), ' short-listed after pigeon ')
         elif ranking == 'C-value':
             print (len(cvalues),' short-listed after the frequency proportion threshold filter ')
