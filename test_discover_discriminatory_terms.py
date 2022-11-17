@@ -6,9 +6,13 @@ import configparser
 
 import sys
 
+doc_sample_no = 100000
+
 def main():
     params = configparser.ConfigParser()  # read parameters from file
     params.read(sys.argv[1])
+
+    histogram_bin_number = int(params['discriminatory_terms']['histogram_bin_number'])
 
     dte = DiscriminatoryTermsExtractor()
     txt_dim_df = dte.load_text_and_dimensions(params['discriminatory_terms']['text_and_dimensions_file'])
@@ -20,12 +24,13 @@ def main():
         important_terms_df = dte.extract_important_terms(txt_dim_df = txt_dim_df,
                 txt_lang =  params['discriminatory_terms']['text_language'], 
                 topn = int(params['discriminatory_terms']['topN']),
-                text_column = params['discriminatory_terms']['text_column'], sample_no = 20000)
-                #text_column = params['discriminatory_terms']['text_column'], sample_no = 200)
+                text_column = params['discriminatory_terms']['text_column'],
+                sample_no = doc_sample_no, frequeny_threshold = histogram_bin_number)
     else:
         important_terms_df = dte.extract_important_terms(txt_dim_df = txt_dim_df, 
                 topn = int(params['discriminatory_terms']['topN']),
-                txt_lang =  params['discriminatory_terms']['text_language'], sample_no = 20000)
+                txt_lang =  params['discriminatory_terms']['text_language'],
+                sample_no = doc_sample_no, frequeny_threshold = histogram_bin_number)
     #print(important_terms_df)
 
     projection_direction = params['discriminatory_terms']['projection_direction_vector'].split(':')
@@ -42,7 +47,7 @@ def main():
             projection_position, dimension_columns)
     #print(doc_proj_df)
 
-    term_metrics_df = dte.compute_term_perplexity_and_skewness(histogram_bins = 7)
+    term_metrics_df = dte.compute_term_perplexity_and_skewness(histogram_bins = histogram_bin_number)
     #print(term_metrics_df)
     term_metrics_df.to_csv(params['discriminatory_terms']['discriminatory_term_file'], index = False)
 

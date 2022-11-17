@@ -51,7 +51,7 @@ class DiscriminatoryTermsExtractor:
         return (df)
 
     # create a document corpus and return most frequent terms
-    def extract_important_terms(self, txt_dim_df = None, txt_lang = None, 
+    def extract_important_terms(self, txt_dim_df = None, txt_lang = None, frequeny_threshold = 1,
             text_column = 'text', sample_no = None, topn = 500): # if sample_no not None sample 
                                                                  # documents to create the corpus
         if txt_dim_df is None:
@@ -90,20 +90,20 @@ class DiscriminatoryTermsExtractor:
                                                  ngrmax = ngrmax, type_pattern = type_pattern,
                                                  NER_extract = with_NER, NER_types = NER_types)
 
-        threshold = 1
-        sample_dictionary, sample_index = self.__filter_terms_by_frequency(sample_dictionary,
-                sample_index, threshold = threshold)
+        #threshold = frequeny_threshold
+        #sample_dictionary, sample_index = self.__filter_terms_by_frequency(sample_dictionary,
+        #        sample_index, threshold = threshold)
 
         # build N-grams of 2 and 3
         nested, n_dict = self.__build_nested_terms(sample_dictionary)
 
-        freq_thres = -0.1 # not used
+        freq_thres = frequeny_threshold
         #freq_thres = .00001
         #topn = 500
         ranking = 'C-value' # other possible rankings: 'pigeon', 'tfidf'
         self.important_terms_df, sample_index = self.__select_important_terms(sample_corpus, nested, 
                 sample_dictionary, sample_index, n_dict, freq_thres = freq_thres,
-                topn = topn, ranking = ranking)
+                topn = topn + 1, ranking = ranking)
                 #topn = int(100 * topn), ranking = ranking)
 
         # index documents based on above terms
@@ -598,7 +598,10 @@ class DiscriminatoryTermsExtractor:
             fn = f / NW
             dth = N - N * math.pow(float((N - 1) / N), f)
 
-            if fn > freq_thres:
+            freq = f
+            # freq = fn  # original
+
+            if freq > freq_thres:
                 freqn[w] = fn  # term proportion in document corpus
                 pigeon[w] = dth / d  # term pigeon measure
                 tfidf[w] = f * math.log(N / d)
