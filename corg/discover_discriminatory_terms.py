@@ -25,6 +25,8 @@ import numpy as np
 
 import scipy
 
+import csv
+
 pattern_NP = [{"POS": "ADJ", "OP": "*"}, {"POS": {'IN': ["NOUN", 'PROPN']}, "OP": "+"}, 
         {"POS": "ADJ", "OP": "*"}, {"POS": {'IN':["CC",'ADP','NUM','DET']}, "OP": "*"},
         {"POS": "ADJ", "OP": "*"}, {"POS": {'IN':["NOUN",'PROPN']}, "OP": "*"}]
@@ -148,6 +150,23 @@ class DiscriminatoryTermsExtractor:
             axis = 1, inplace = True)
 
         return (self.important_terms_df)
+
+    def save_important_term_index(self, term_index_filename = None):
+        if term_index_filename is None:
+            raise ValueError('Term index filename has to be provided.')
+
+        if self.doc_term_index is None:
+            raise ValueError('Term index has not been computed.')
+
+        with open(term_index_filename, 'w') as fn:
+            csv_writer = csv.writer(fn, delimiter = '|')
+
+            csv_writer.writerow(['term', 'document_id'])
+
+            for t in self.doc_term_index.keys():
+                docs = self.doc_term_index[t]
+                for d in docs:
+                    csv_writer.writerow([t, d])
 
     # given (1) an axis/dimension and (2) a subset of the dimension columns, 
     # compute the projection of each document to (1) using (2) as its actual dimensions
