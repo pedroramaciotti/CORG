@@ -6,7 +6,8 @@ import configparser
 
 import sys
 
-doc_sample_no = 100000
+#doc_sample_no = 100000
+doc_sample_no = 200
 
 def main():
     params = configparser.ConfigParser()  # read parameters from file
@@ -16,7 +17,7 @@ def main():
 
     dte = DiscriminatoryTermsExtractor()
     txt_dim_df = dte.load_text_and_dimensions(params['discriminatory_terms']['text_and_dimensions_file'])
-    #txt_dim_df = txt_dim_df.sample(1000)
+    txt_dim_df = txt_dim_df.sample(1000)
 
     # 'text_language': en, fr, de, it, es
     important_terms_df = None
@@ -48,7 +49,7 @@ def main():
     #print(doc_proj_df)
 
     term_metrics_df = dte.compute_term_perplexity_and_skewness(histogram_bins = histogram_bin_number)
-    #print(term_metrics_df)
+    print(term_metrics_df)
     term_metrics_df.to_csv(params['discriminatory_terms']['discriminatory_term_file'], index = False)
 
 if __name__ == "__main__":

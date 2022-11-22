@@ -135,6 +135,18 @@ class DiscriminatoryTermsExtractor:
 
         doc_projection_df = None
 
+        # add term frequency
+        term_freq = []
+        for _, row in self.important_terms_df.iterrows():
+            term_freq.append(len(self.doc_term_index[row['lemma']]))
+        self.important_terms_df['term_frequency'] = term_freq
+
+        self.important_terms_df.rename({'normalized frequency': 'sample_normalized_frequency', 
+            'documents': 'sample_documents', 'pigeon': 'sample_pigeon'}, axis = 1, inplace = True)
+        self.important_terms_df.rename({'C-value': 'sample_C-value', 'C-pigeon': 'sample_C-pigeon',  
+            'tfidf': 'sample_tfidf', 'n': 'sample_n', 'occurrences': 'sample_occurrences'},
+            axis = 1, inplace = True)
+
         return (self.important_terms_df)
 
     # given (1) an axis/dimension and (2) a subset of the dimension columns, 
@@ -228,8 +240,9 @@ class DiscriminatoryTermsExtractor:
 
         important_terms_dict = {}
         for _, row in tqdm(self.important_terms_df.iterrows()):
-            important_terms_dict[row['lemma']] = str(row['pigeon']) + ':' + \
-                    str(row['C-value']) + ':' + str(row['C-pigeon']) + ':' + str(row['tfidf'])
+            important_terms_dict[row['lemma']] = str(row['sample_pigeon']) + ':' + \
+                    str(row['sample_C-value']) + ':' + str(row['sample_C-pigeon']) + ':' + \
+                    str(row['sample_tfidf']) + ':' + str(row['term_frequency'])
 
         terms = []
         histograms = []
@@ -239,6 +252,7 @@ class DiscriminatoryTermsExtractor:
         sample_C_value = []
         sample_C_pigeon = []
         sample_tfidf = []
+        global_term_frequency = []
         for t in tqdm(self.doc_term_index.keys()):
             t_docs = self.doc_term_index[t]
             xs = []
@@ -280,8 +294,10 @@ class DiscriminatoryTermsExtractor:
                 sample_C_value.append(float(trm_metrics[1]))
                 sample_C_pigeon.append(float(trm_metrics[2]))
                 sample_tfidf.append(float(trm_metrics[3]))
+                global_term_frequency.append(int(trm_metrics[4]))
 
         term_metrics_df['term'] = terms
+        term_metrics_df['term_frequency'] = global_term_frequency
         term_metrics_df['histogram'] = histograms
         term_metrics_df['perplexity'] = perplexities
         term_metrics_df['skewness'] = skewness
