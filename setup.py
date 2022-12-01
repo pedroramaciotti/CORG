@@ -3,7 +3,7 @@ from distutils.core import setup
 
 setup(
   name = 'CORG',         
-  version = '0.2',      
+  version = '0.3',      
   license='MIT',        
   description = 'CORG: Corporal geometrics for text dimensionality analysis',   
   author = 'Pedro Ramaciotti Morales',                      
